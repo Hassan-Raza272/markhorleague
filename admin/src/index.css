@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mcl-forest-950: #030a05;
+  --color-mcl-forest-900: #071a0b;
+  --color-mcl-forest-800: #0a2410;
+  --color-mcl-forest-700: #0d3b1f;
+  --color-mcl-forest-600: #14532d;
+  --color-mcl-lime-400: #b4dc3a;
+  --color-mcl-lime-500: #a3cf2d;
+  --color-mcl-lime-600: #8cc63f;
+  --color-mcl-gold-400: #e0c15a;
+  --color-mcl-gold-500: #d4af37;
+  --color-mcl-silver-50: #ffffff;
+  --color-mcl-silver-100: #f3f4f3;
+  --color-mcl-silver-400: #9ca39c;
+
+  /* Back-compat aliases used by existing admin classes */
+  --color-mcl-green-50: #0a2410;
+  --color-mcl-green-100: #0d3b1f;
+  --color-mcl-green-200: #14532d;
+  --color-mcl-green-400: #a3cf2d;
+  --color-mcl-green-500: #071a0b;
+  --color-mcl-green-600: #0a2410;
+  --color-mcl-green-700: #f3f4f3;
+
+  --font-sans: "Segoe UI", "Helvetica Neue", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: #071a0b;
+  color: #f3f4f3;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Shared dark-theme surfaces for admin pages */
+@layer components {
+  .admin-panel {
+    @apply bg-mcl-forest-800 rounded-2xl border border-mcl-forest-600;
+  }
+
+  .admin-label {
+    @apply block text-sm font-semibold text-mcl-silver-100 mb-1.5;
+  }
+
+  .admin-input {
+    @apply w-full px-4 py-2.5 rounded-xl bg-mcl-forest-900 border border-mcl-forest-600 text-white placeholder:text-mcl-silver-400 focus:outline-none focus:ring-2 focus:ring-mcl-lime-500 focus:border-transparent transition;
+    color-scheme: dark;
+  }
+
+  .admin-select {
+    @apply px-3 py-2 rounded-lg bg-mcl-forest-900 border border-mcl-forest-600 text-sm text-white focus:outline-none focus:ring-2 focus:ring-mcl-lime-500;
+  }
+
+  .admin-table-head {
+    @apply bg-mcl-forest-900/60 text-left text-xs font-semibold text-mcl-silver-400 uppercase tracking-wider;
+  }
+
+  .admin-chip {
+    @apply px-3 py-1.5 rounded-full text-xs font-bold border transition;
+  }
+
+  .admin-chip-idle {
+    @apply bg-mcl-forest-800 text-mcl-silver-100 border-mcl-forest-600 hover:border-mcl-lime-500/50;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #14532d;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a3cf2d;
+}
+
+@keyframes draft-board-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes draft-board-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes draft-board-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.draft-board-live-pulse {
+  animation: draft-board-live-pulse 1.2s ease-in-out infinite;
+}
+
+.draft-board-reveal {
+  animation: draft-board-reveal 0.55s ease-out both;
+}
+
+.draft-board-fade-in {
+  animation: draft-board-fade-in 0.4s ease-out both;
+}

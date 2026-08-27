@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-path name="rnshare_external" path="." />
+    <external-files-path name="rnshare_files" path="." />
+    <external-cache-path name="rnshare_external_cache" path="." />
+    <files-path name="rnshare_internal_files" path="." />
+    <cache-path name="rnshare_cache" path="." />
+    <root-path name="rnshare_root" path="." />
+</paths>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "81898468365",
+    "project_id": "mclregistration",
+    "storage_bucket": "mclregistration.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:81898468365:android:ff6bc3e93b16cc94cd1144",
+        "android_client_info": {
+          "package_name": "com.mclregistration"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2bmktOcVOawz-TCD97VBgPdJGuGjZTZk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

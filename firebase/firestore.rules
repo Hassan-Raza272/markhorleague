@@ -1,0 +1,174 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role != 'FRANCHISE_ADMIN') ||
+         userDoc().role == 'SUPER_ADMIN');
+    }
+
+    function isFranchiseAdmin() {
+      return isAuthenticated() &&
+        (userDoc().role == 'FRANCHISE_ADMIN' ||
+          (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'FRANCHISE_ADMIN'));
+    }
+
+    function franchiseAdminFranchiseId() {
+      return userDoc().franchiseId != null
+        ? userDoc().franchiseId
+        : get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.franchiseId;
+    }
+
+    function isPlayerOwner(playerData) {
+      return isAuthenticated() && playerData.userId == request.auth.uid;
+    }
+
+    function onlyDraftPlayerFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['draftedFranchiseId', 'draftPickNumber', 'draftedAt', 'updatedAt']);
+    }
+
+    function onlyLockPlayerFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['lockedFranchiseId', 'lockedAt', 'updatedAt']);
+    }
+
+    function onlyFranchiseLockFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['lockedPlayerIds', 'updatedAt']);
+    }
+
+    function onlyFranchiseCaptainFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['captainPlayerId', 'updatedAt']);
+    }
+
+    function onlyDraftSessionFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly([
+          'currentPickNumber',
+          'status',
+          'completedAt',
+          'updatedAt',
+          'pickClockRunning',
+          'pickClockStartedAt',
+          'pickClockForPickNumber',
+          'pickClockDurationMs',
+        ]);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isSuperAdmin();
+      allow create: if isOwner(userId) &&
+        request.resource.data.role == 'PLAYER';
+      allow update: if isOwner(userId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == adminId);
+      allow create, update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /players/{playerId} {
+      allow read: if isSuperAdmin() || isFranchiseAdmin() ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'PENDING';
+      allow update: if isSuperAdmin() ||
+        (isFranchiseAdmin() &&
+          resource.data.status == 'APPROVED' &&
+          onlyDraftPlayerFieldsChanged()) ||
+        (isFranchiseAdmin() &&
+          resource.data.status == 'APPROVED' &&
+          resource.data.userId == request.auth.uid &&
+          onlyLockPlayerFieldsChanged()) ||
+        (isAuthenticated() &&
+         resource.data.userId == request.auth.uid &&
+         resource.data.status in ['PENDING', 'REJECTED', 'APPROVED'] &&
+         request.resource.data.status == resource.data.status &&
+         request.resource.data.userId == resource.data.userId &&
+         request.resource.data.playerId == resource.data.playerId);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /publicPlayers/{playerId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if settingId == 'league' || isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /counters/{counterId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin() ||
+        (isFranchiseAdmin() && request.resource.data.adminId == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+      allow create: if isSuperAdmin();
+      allow update: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+      allow delete: if isSuperAdmin();
+    }
+
+    match /franchises/{franchiseId} {
+      // Public read: hall LED draft board + franchise apps
+      allow read: if true;
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() ||
+        (isFranchiseAdmin() &&
+          franchiseId == franchiseAdminFranchiseId() &&
+          onlyFranchiseCaptainFieldsChanged());
+    }
+
+    match /draftSessions/{sessionId} {
+      // Public read: live draft board on hall LCD/LED
+      allow read: if true;
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() ||
+        (isFranchiseAdmin() &&
+          resource.data.status == 'IN_PROGRESS' &&
+          onlyDraftSessionFieldsChanged() &&
+          request.resource.data.currentPickNumber == resource.data.currentPickNumber + 1 &&
+          request.resource.data.pickClockRunning == false);
+
+      match /picks/{pickId} {
+        allow read: if true;
+        allow create: if isSuperAdmin() ||
+          (isFranchiseAdmin() &&
+            request.resource.data.franchiseId == franchiseAdminFranchiseId() &&
+            request.resource.data.pickedBy == request.auth.uid);
+        allow update, delete: if isSuperAdmin();
+      }
+    }
+  }
+}
