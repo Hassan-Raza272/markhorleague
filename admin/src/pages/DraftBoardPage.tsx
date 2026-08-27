@@ -194,7 +194,8 @@ export function DraftBoardPage() {
 
   const clockMs = getPickClockRemainingMs(session, now);
   const clockActive = isPickClockActive(session);
-  const clockUrgent = clockActive && clockMs <= 30_000;
+  const clockSeconds = Math.ceil(clockMs / 1000);
+  const clockUrgent = clockActive && clockSeconds <= 30;
 
   const recentPicks = useMemo(
     () => [...draftedPicks].reverse().slice(0, 8),
@@ -222,36 +223,91 @@ export function DraftBoardPage() {
 
       {/* Fullscreen pick reveal — 15s */}
       {revealing ? (
-        <div className="fixed inset-0 z-50 draft-board-reveal flex flex-col items-center justify-center bg-mcl-forest-950">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(212,175,55,0.18),_transparent_55%)]" />
-          <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-6xl w-full">
-            <p className="text-mcl-gold-400 text-base md:text-xl font-bold uppercase tracking-[0.35em] mb-6 md:mb-8">
-              {revealing.isAutoPick ? 'Auto Pick' : 'New Pick'} · #{revealing.pickNumber}
-            </p>
+        <div className="fixed inset-0 z-50 draft-board-reveal flex flex-col items-center justify-center overflow-hidden bg-[#020805]">
+          {/* Atmosphere */}
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(212,175,55,0.22)_0%,_transparent_52%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(163,207,45,0.14)_0%,_transparent_42%)]" />
+          <div className="pointer-events-none absolute -left-24 top-1/4 h-[55vh] w-[55vh] rounded-full bg-mcl-lime-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -right-24 bottom-1/4 h-[50vh] w-[50vh] rounded-full bg-mcl-gold-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-mcl-gold-500/70 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-mcl-lime-500/50 to-transparent" />
 
-            {heroPhoto ? (
+          <div className="relative z-10 flex h-full w-full max-w-[1400px] flex-col items-center justify-center px-6 py-8 md:px-10">
+            {/* Top brand strip */}
+            <div className="draft-board-reveal-badge mb-5 flex items-center gap-3 md:mb-7">
               <img
-                src={heroPhoto}
-                alt={revealing.playerName}
-                className="w-[min(58vh,520px)] h-[min(58vh,520px)] rounded-full object-cover border-[6px] border-mcl-gold-500 shadow-[0_0_80px_rgba(212,175,55,0.35)]"
+                src="/mcl-logo.png"
+                alt=""
+                className="h-10 w-10 rounded-full object-cover ring-2 ring-mcl-gold-500/60 md:h-12 md:w-12"
               />
-            ) : (
-              <div className="w-[min(58vh,520px)] h-[min(58vh,520px)] rounded-full bg-mcl-forest-800 border-[6px] border-mcl-gold-500 flex items-center justify-center text-7xl md:text-8xl font-extrabold text-mcl-lime-500 shadow-[0_0_80px_rgba(212,175,55,0.25)]">
-                {shortName(revealing.playerName)}
+              <div className="text-left">
+                <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-mcl-gold-400 md:text-xs">
+                  Markhor Cricket League
+                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-mcl-silver-400 md:text-sm">
+                  Season 4 · Live Draft
+                </p>
               </div>
-            )}
+            </div>
 
-            <h2 className="mt-8 md:mt-10 text-4xl md:text-6xl lg:text-7xl font-extrabold leading-tight">
-              {revealing.playerName}
-            </h2>
-            <p className="mt-3 text-xl md:text-3xl text-mcl-lime-500 font-bold">
-              {revealing.franchiseName}
-            </p>
-            <p className="mt-2 text-base md:text-2xl text-mcl-silver-400">
-              {revealing.playerRole}
-              {revealing.playerCategory ? ` · ${revealing.playerCategory}` : ''}
-              {revealing.shirtNumber ? ` · #${revealing.shirtNumber}` : ''}
-            </p>
+            {/* Pick badge */}
+            <div className="draft-board-reveal-badge mb-6 inline-flex items-center gap-3 rounded-full border border-mcl-gold-500/50 bg-mcl-gold-500/10 px-5 py-2.5 backdrop-blur-sm md:mb-8 md:px-7 md:py-3">
+              <span className="h-2 w-2 rounded-full bg-mcl-lime-500 draft-board-live-pulse" />
+              <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-mcl-gold-400 md:text-lg">
+                {revealing.isAutoPick ? 'Auto Pick' : 'New Pick'}
+              </p>
+              <span className="rounded-full bg-mcl-forest-900/80 px-3 py-1 text-sm font-extrabold text-white md:text-base">
+                #{revealing.pickNumber}
+              </span>
+            </div>
+
+            {/* Hero photo with premium rings */}
+            <div className="draft-board-reveal-photo relative mb-7 md:mb-9">
+              <div className="absolute -inset-6 rounded-full border border-mcl-lime-500/25 md:-inset-8" />
+              <div className="absolute -inset-3 rounded-full border border-mcl-gold-500/40 md:-inset-4" />
+              <div className="draft-board-reveal-ring relative overflow-hidden rounded-full">
+                {heroPhoto ? (
+                  <img
+                    src={heroPhoto}
+                    alt={revealing.playerName}
+                    className="h-[min(70vh,760px)] w-[min(70vh,760px)] rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-[min(70vh,760px)] w-[min(70vh,760px)] items-center justify-center rounded-full bg-gradient-to-b from-mcl-forest-700 to-mcl-forest-900">
+                    <span className="text-8xl font-extrabold tracking-tight text-mcl-lime-500 md:text-9xl">
+                      {shortName(revealing.playerName)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Player copy */}
+            <div className="draft-board-reveal-text text-center">
+              <h2 className="max-w-5xl text-5xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.55)] md:text-7xl lg:text-8xl">
+                {revealing.playerName}
+              </h2>
+            </div>
+            <div className="draft-board-reveal-text-delay mt-4 flex flex-col items-center gap-3 md:mt-5">
+              <p className="text-2xl font-extrabold text-mcl-lime-500 md:text-4xl lg:text-5xl">
+                {revealing.franchiseName}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center justify-center gap-2 md:gap-3">
+                <span className="rounded-full border border-mcl-forest-600 bg-mcl-forest-900/80 px-4 py-1.5 text-sm font-bold uppercase tracking-wider text-mcl-silver-100 md:text-base">
+                  {revealing.playerRole}
+                </span>
+                {revealing.playerCategory ? (
+                  <span className="rounded-full border border-mcl-gold-500/35 bg-mcl-gold-500/10 px-4 py-1.5 text-sm font-bold uppercase tracking-wider text-mcl-gold-400 md:text-base">
+                    {revealing.playerCategory}
+                  </span>
+                ) : null}
+                {revealing.shirtNumber ? (
+                  <span className="rounded-full border border-mcl-lime-500/40 bg-mcl-lime-500/10 px-4 py-1.5 text-sm font-extrabold text-mcl-lime-400 md:text-base">
+                    #{revealing.shirtNumber}
+                  </span>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -336,17 +392,26 @@ export function DraftBoardPage() {
                   {onClockFranchise.name}
                 </p>
                 <div
-                  className={`inline-flex items-center justify-center min-w-[16rem] md:min-w-[28rem] px-12 md:px-20 py-7 md:py-12 rounded-3xl border-[3px] font-mono text-7xl md:text-[9rem] lg:text-[11rem] font-extrabold tabular-nums leading-none ${
+                  className={`inline-flex items-center justify-center min-w-[16rem] md:min-w-[28rem] px-12 md:px-20 py-7 md:py-12 rounded-3xl border-[3px] font-mono text-7xl md:text-[9rem] lg:text-[11rem] font-extrabold tabular-nums leading-none transition-colors duration-300 ${
                     clockUrgent
-                      ? 'bg-red-500/15 border-red-400 text-red-300 draft-board-live-pulse'
+                      ? 'draft-board-clock-urgent'
                       : clockActive
                         ? 'bg-mcl-lime-500/10 border-mcl-lime-500 text-mcl-lime-400'
                         : 'bg-mcl-forest-800 border-mcl-forest-600 text-mcl-silver-400'
                   }`}>
                   {formatPickClock(clockMs)}
                 </div>
-                <p className="mt-6 text-mcl-silver-400 text-sm md:text-lg">
-                  {clockActive ? 'Pick clock running' : 'Waiting for clock / pick'}
+                <p
+                  className={`mt-6 text-sm md:text-lg font-semibold ${
+                    clockUrgent
+                      ? 'text-red-400'
+                      : 'text-mcl-silver-400'
+                  }`}>
+                  {clockUrgent
+                    ? 'Hurry — under 30 seconds'
+                    : clockActive
+                      ? 'Pick clock running'
+                      : 'Waiting for clock / pick'}
                 </p>
                 <div className="mt-8 w-full max-w-xl">
                   <div className="flex items-end justify-between gap-2 mb-2 px-1">
