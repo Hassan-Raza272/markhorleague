@@ -103,14 +103,77 @@ body {
   }
 }
 
+@keyframes draft-board-urgent-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45);
+  }
+  50% {
+    opacity: 0.92;
+    box-shadow: 0 0 36px 4px rgba(239, 68, 68, 0.35);
+  }
+}
+
 @keyframes draft-board-reveal {
   0% {
     opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes draft-board-reveal-photo {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  60% {
+    opacity: 1;
     transform: scale(1.04);
   }
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes draft-board-reveal-ring {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(212, 175, 55, 0.95),
+      0 0 0 14px rgba(212, 175, 55, 0.12),
+      0 0 90px 18px rgba(212, 175, 55, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(212, 175, 55, 1),
+      0 0 0 22px rgba(163, 207, 45, 0.16),
+      0 0 120px 28px rgba(212, 175, 55, 0.38);
+  }
+}
+
+@keyframes draft-board-reveal-text {
+  0% {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes draft-board-reveal-badge {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -127,8 +190,35 @@ body {
   animation: draft-board-live-pulse 1.2s ease-in-out infinite;
 }
 
+.draft-board-clock-urgent {
+  background: rgba(220, 38, 38, 0.2) !important;
+  border-color: #ef4444 !important;
+  color: #f87171 !important;
+  animation: draft-board-urgent-pulse 0.75s ease-in-out infinite;
+}
+
 .draft-board-reveal {
-  animation: draft-board-reveal 0.55s ease-out both;
+  animation: draft-board-reveal 0.4s ease-out both;
+}
+
+.draft-board-reveal-photo {
+  animation: draft-board-reveal-photo 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.draft-board-reveal-ring {
+  animation: draft-board-reveal-ring 2.4s ease-in-out infinite;
+}
+
+.draft-board-reveal-text {
+  animation: draft-board-reveal-text 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
+}
+
+.draft-board-reveal-text-delay {
+  animation: draft-board-reveal-text 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+}
+
+.draft-board-reveal-badge {
+  animation: draft-board-reveal-badge 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .draft-board-fade-in {
