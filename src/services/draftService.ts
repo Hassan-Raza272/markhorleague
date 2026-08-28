@@ -78,6 +78,8 @@ function mapDraftSession(id: string, data: Record<string, unknown>): DraftSessio
     startedAt: data.startedAt ? toDate(data.startedAt) : undefined,
     completedAt: data.completedAt ? toDate(data.completedAt) : undefined,
     createdBy: data.createdBy as string | undefined,
+    squadSlideshowFranchiseId: data.squadSlideshowFranchiseId as string | undefined,
+    squadSlideshowToken: data.squadSlideshowToken as number | undefined,
   };
 }
 
@@ -1286,6 +1288,53 @@ export async function completeDraft(
   });
 }
 
+export async function startSquadSlideshowOnBoard(
+  franchiseId: string,
+  adminId: string,
+  adminEmail: string,
+  sessionId: string = DRAFT.SESSION_ID,
+): Promise<void> {
+  const session = await getDraftSession(sessionId);
+  if (!session) throw new Error('Draft session not found');
+  if (session.status !== 'COMPLETED') {
+    throw new Error('Squad slideshow is available after the draft is complete');
+  }
+
+  await updateDoc(sessionRef(sessionId), {
+    squadSlideshowFranchiseId: franchiseId,
+    squadSlideshowToken: Date.now(),
+    updatedAt: serverTimestamp(),
+  });
+
+  await createAuditLog({
+    adminId,
+    adminEmail,
+    action: 'SQUAD_SLIDESHOW_STARTED',
+    metadata: { franchiseId },
+  });
+}
+
+export async function stopSquadSlideshowOnBoard(
+  adminId: string,
+  adminEmail: string,
+  sessionId: string = DRAFT.SESSION_ID,
+): Promise<void> {
+  const session = await getDraftSession(sessionId);
+  if (!session) throw new Error('Draft session not found');
+
+  await updateDoc(sessionRef(sessionId), {
+    squadSlideshowFranchiseId: null,
+    squadSlideshowToken: null,
+    updatedAt: serverTimestamp(),
+  });
+
+  await createAuditLog({
+    adminId,
+    adminEmail,
+    action: 'SQUAD_SLIDESHOW_STOPPED',
+  });
+}
+
 export async function resetDraft(
   adminId: string,
   adminEmail: string,
@@ -1333,6 +1382,8 @@ export async function resetDraft(
       picksPerFranchise: size.picksPerFranchise,
       startedAt: null,
       completedAt: null,
+      squadSlideshowFranchiseId: null,
+      squadSlideshowToken: null,
       ...stoppedClockFields(),
       updatedAt: serverTimestamp(),
     },

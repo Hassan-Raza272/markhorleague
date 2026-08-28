@@ -134,6 +134,9 @@ export interface DraftSession {
   startedAt?: Date;
   completedAt?: Date;
   createdBy?: string;
+  /** Remote trigger from admin app — show squad slideshow on LED board. */
+  squadSlideshowFranchiseId?: string;
+  squadSlideshowToken?: number;
 }
 
 export interface DraftPick {

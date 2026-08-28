@@ -47,7 +47,9 @@ import {
   setupDraftFranchises,
   startDraft,
   startPickClock,
+  startSquadSlideshowOnBoard,
   stopPickClock,
+  stopSquadSlideshowOnBoard,
   subscribeFranchises,
   submitDraftPick,
   subscribeDraftPicks,
@@ -1215,6 +1217,53 @@ export function AdminDraftScreen() {
     }
   };
 
+  const getFranchiseSquadCount = useCallback(
+    (targetFranchise: Franchise) => {
+      const lockPicks = buildLockedPicksForFranchise(players, targetFranchise);
+      const drafted = picks.filter(pick => pick.franchiseId === targetFranchise.id);
+      return lockPicks.length + drafted.length;
+    },
+    [picks, players],
+  );
+
+  const handleShowSquadOnLed = async (targetFranchise: Franchise) => {
+    if (!user?.uid || !user.email || !isSuperAdmin) return;
+    if (getFranchiseSquadCount(targetFranchise) === 0) {
+      alert('No squad', `${targetFranchise.name} has no players yet.`);
+      return;
+    }
+    setBusy(`led-squad-${targetFranchise.id}`);
+    try {
+      await startSquadSlideshowOnBoard(
+        targetFranchise.id,
+        user.uid,
+        user.email,
+      );
+    } catch (e: unknown) {
+      alert(
+        'LED squad failed',
+        e instanceof Error ? e.message : 'Could not start squad on draft board',
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleStopSquadOnLed = async () => {
+    if (!user?.uid || !user.email || !isSuperAdmin) return;
+    setBusy('led-squad-stop');
+    try {
+      await stopSquadSlideshowOnBoard(user.uid, user.email);
+    } catch (e: unknown) {
+      alert(
+        'Stop failed',
+        e instanceof Error ? e.message : 'Could not stop squad on draft board',
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const handlePickPlayer = (player: Player) => {
     if (!user?.uid || !user.email || !onClock || !canPick) return;
     const adminId = user.uid;
@@ -2295,6 +2344,51 @@ export function AdminDraftScreen() {
               )}>
               Share Squad for Owner
             </PremiumButton>
+          </DraftSection>
+        )}
+
+        {isSuperAdmin && isComplete && (
+          <DraftSection
+            icon="monitor-dashboard"
+            title="Show Franchise Squad on LED Board"
+            hint="Tap a franchise to play each player on the hall draft board — photo and details for 4 seconds, same as live picks.">
+            {session?.squadSlideshowFranchiseId ? (
+              <PremiumButton
+                variant="outline"
+                onPress={handleStopSquadOnLed}
+                loading={busy === 'led-squad-stop'}
+                disabled={!!busy && busy !== 'led-squad-stop'}
+                icon={() => (
+                  <AppIcon name="stop" size={18} color={colors.status.rejected} />
+                )}>
+                Stop LED Squad Show
+              </PremiumButton>
+            ) : null}
+            {franchises.map(franchise => {
+              const squadCount = getFranchiseSquadCount(franchise);
+              const isActive = session?.squadSlideshowFranchiseId === franchise.id;
+              return (
+                <PremiumButton
+                  key={franchise.id}
+                  variant={isActive ? 'primary' : 'outline'}
+                  onPress={() => handleShowSquadOnLed(franchise)}
+                  loading={busy === `led-squad-${franchise.id}`}
+                  disabled={
+                    squadCount === 0 ||
+                    (!!busy && busy !== `led-squad-${franchise.id}`)
+                  }
+                  style={{ marginTop: 10 }}
+                  icon={() => (
+                    <AppIcon
+                      name="account-group"
+                      size={18}
+                      color={isActive ? colors.forest[950] : colors.lime[500]}
+                    />
+                  )}>
+                  {franchise.name} ({squadCount})
+                </PremiumButton>
+              );
+            })}
           </DraftSection>
         )}
 

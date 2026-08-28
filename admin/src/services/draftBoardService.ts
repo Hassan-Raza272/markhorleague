@@ -9,6 +9,7 @@ import {
 import { db } from '../firebase/config';
 import { COLLECTIONS, DRAFT_PICK_CLOCK_MS, DRAFT_SESSION_ID } from '../constants/draft';
 import type { DraftPick, DraftSession, Franchise, Player } from '../types';
+import type { LockedSquadPlayer } from '../utils/squadSlideshow';
 
 function toDate(value: unknown): Date {
   if (value instanceof Timestamp) return value.toDate();
@@ -53,6 +54,8 @@ function mapDraftSession(id: string, data: Record<string, unknown>): DraftSessio
     startedAt: data.startedAt ? toDate(data.startedAt) : undefined,
     completedAt: data.completedAt ? toDate(data.completedAt) : undefined,
     createdBy: data.createdBy as string | undefined,
+    squadSlideshowFranchiseId: data.squadSlideshowFranchiseId as string | undefined,
+    squadSlideshowToken: data.squadSlideshowToken as number | undefined,
   };
 }
 
@@ -138,6 +141,44 @@ export function subscribeFranchises(
         snap.docs
           .map(d => mapFranchise(d.id, d.data() as Record<string, unknown>))
           .sort((a, b) => a.orderIndex - b.orderIndex),
+      );
+    },
+    err => onError?.(err),
+  );
+}
+
+function mapLockedSquadPlayer(
+  id: string,
+  data: Record<string, unknown>,
+): LockedSquadPlayer {
+  return {
+    id,
+    playerId: (data.playerId as string) ?? '',
+    fullName: (data.fullName as string) ?? '',
+    role: (data.role as string) ?? '',
+    category: data.category as string | undefined,
+    shirtNumber: data.shirtNumber as string | undefined,
+    profileImage: data.profileImage as string | undefined,
+    lockedFranchiseId: data.lockedFranchiseId as string | undefined,
+    lockedAt: data.lockedAt ? toDate(data.lockedAt) : undefined,
+    userId: data.userId as string | undefined,
+    email: data.email as string | undefined,
+  };
+}
+
+export function subscribeLockedSquadPlayers(
+  onData: (players: LockedSquadPlayer[]) => void,
+  onError?: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    collection(db, COLLECTIONS.PLAYERS),
+    snap => {
+      onData(
+        snap.docs
+          .map(d =>
+            mapLockedSquadPlayer(d.id, d.data() as Record<string, unknown>),
+          )
+          .filter(player => !!player.lockedFranchiseId),
       );
     },
     err => onError?.(err),
