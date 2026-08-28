@@ -3,6 +3,7 @@ import {
   subscribeDraftPicks,
   subscribeDraftSession,
   subscribeFranchises,
+  subscribeLockedSquadPlayers,
   subscribePlayerPhotos,
   subscribePublicPlayerPhotos,
 } from '../services/draftBoardService';
@@ -17,25 +18,17 @@ import {
   isPickClockActive,
 } from '../utils/pickClock';
 import type { DraftPick, DraftSession, Franchise } from '../types';
-import { Maximize2, Minimize2 } from 'lucide-react';
-
-const REVEAL_MS = 15_000;
-
-function shortName(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(w => w[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-function franchiseLabel(franchise: Franchise | null | undefined, fallback?: string): string {
-  if (franchise?.shortCode?.trim()) return franchise.shortCode.trim();
-  const name = franchise?.name ?? fallback ?? '—';
-  if (name.length <= 22) return name;
-  return `${name.slice(0, 20)}…`;
-}
+import { Maximize2, Minimize2, Square } from 'lucide-react';
+import {
+  DraftBoardPlayerReveal,
+  REVEAL_MS,
+  squadPlayerToRevealProps,
+  SQUAD_SLIDE_MS,
+} from '../components/DraftBoardPlayerReveal';
+import {
+  buildFranchiseSquadSlideshow,
+  type LockedSquadPlayer,
+} from '../utils/squadSlideshow';
 
 function statusLabel(status: DraftSession['status'] | undefined): string {
   switch (status) {
@@ -54,14 +47,21 @@ export function DraftBoardPage() {
   const [session, setSession] = useState<DraftSession | null>(null);
   const [picks, setPicks] = useState<DraftPick[]>([]);
   const [franchises, setFranchises] = useState<Franchise[]>([]);
+  const [lockedPlayers, setLockedPlayers] = useState<LockedSquadPlayer[]>([]);
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [revealPickId, setRevealPickId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [localSlideshowFranchiseId, setLocalSlideshowFranchiseId] = useState<
+    string | null
+  >(null);
+  const [slideshowIndex, setSlideshowIndex] = useState(0);
+  const [slideshowPlaying, setSlideshowPlaying] = useState(false);
   const lastPickCount = useRef(0);
   const revealTimer = useRef<number | null>(null);
   const boardReady = useRef(false);
+  const slideshowKeyRef = useRef('');
 
   const mergePhotos = useCallback((next: Record<string, string>) => {
     setPhotos(prev => ({ ...prev, ...next }));
@@ -80,10 +80,14 @@ export function DraftBoardPage() {
       setFranchises,
       err => setError(err.message),
     );
+    const unsubLocked = subscribeLockedSquadPlayers(setLockedPlayers, () => {
+      /* board may lack player read access */
+    });
     return () => {
       unsubSession();
       unsubPicks();
       unsubFranchises();
+      unsubLocked();
     };
   }, []);
 
@@ -107,13 +111,16 @@ export function DraftBoardPage() {
 
   useEffect(() => {
     const nonLocks = picks.filter(p => !p.isLock);
-    // Skip reveal flood on first snapshot; only animate new live picks.
     if (!boardReady.current) {
       lastPickCount.current = nonLocks.length;
       boardReady.current = true;
       return;
     }
-    if (nonLocks.length > lastPickCount.current && nonLocks.length > 0) {
+    if (
+      session?.status === 'IN_PROGRESS' &&
+      nonLocks.length > lastPickCount.current &&
+      nonLocks.length > 0
+    ) {
       const latest = nonLocks[nonLocks.length - 1];
       setRevealPickId(latest.id);
       if (revealTimer.current) window.clearTimeout(revealTimer.current);
@@ -123,7 +130,7 @@ export function DraftBoardPage() {
       }, REVEAL_MS);
     }
     lastPickCount.current = nonLocks.length;
-  }, [picks]);
+  }, [picks, session?.status]);
 
   useEffect(() => {
     return () => {
@@ -161,13 +168,109 @@ export function DraftBoardPage() {
   const revealing =
     revealPickId && lastPick && lastPick.id === revealPickId ? lastPick : null;
 
+  const remoteSlideshowFranchiseId =
+    session?.status === 'COMPLETED'
+      ? session.squadSlideshowFranchiseId ?? null
+      : null;
+
+  const activeSlideshowFranchiseId =
+    localSlideshowFranchiseId ?? remoteSlideshowFranchiseId;
+
+  const activeSlideshowFranchise = activeSlideshowFranchiseId
+    ? franchiseById.get(activeSlideshowFranchiseId) ?? null
+    : null;
+
+  const squadPlayers = useMemo(() => {
+    if (!activeSlideshowFranchise) return [];
+    return buildFranchiseSquadSlideshow(
+      activeSlideshowFranchise,
+      picks,
+      lockedPlayers,
+    );
+  }, [activeSlideshowFranchise, lockedPlayers, picks]);
+
   const resolvePhoto = useCallback(
-    (pick: DraftPick | null | undefined) => {
-      if (!pick) return undefined;
-      return pick.profileImage || photos[pick.playerDocId] || undefined;
-    },
+    (playerDocId: string, profileImage?: string) =>
+      profileImage || photos[playerDocId] || undefined,
     [photos],
   );
+
+  const resolvePickPhoto = useCallback(
+    (pick: DraftPick | null | undefined) => {
+      if (!pick) return undefined;
+      return resolvePhoto(pick.playerDocId, pick.profileImage);
+    },
+    [resolvePhoto],
+  );
+
+  const startLocalSlideshow = (franchiseId: string) => {
+    setLocalSlideshowFranchiseId(franchiseId);
+    setSlideshowIndex(0);
+    setSlideshowPlaying(true);
+  };
+
+  const stopSlideshow = () => {
+    setLocalSlideshowFranchiseId(null);
+    setSlideshowIndex(0);
+    setSlideshowPlaying(false);
+    slideshowKeyRef.current = '';
+  };
+
+  useEffect(() => {
+    if (!activeSlideshowFranchiseId) {
+      setSlideshowPlaying(false);
+      setSlideshowIndex(0);
+      return;
+    }
+
+    const token = session?.squadSlideshowToken ?? 0;
+    const key = localSlideshowFranchiseId
+      ? `local:${activeSlideshowFranchiseId}`
+      : `remote:${activeSlideshowFranchiseId}:${token}`;
+
+    if (slideshowKeyRef.current !== key) {
+      slideshowKeyRef.current = key;
+      setSlideshowIndex(0);
+      setSlideshowPlaying(squadPlayers.length > 0);
+    }
+  }, [
+    activeSlideshowFranchiseId,
+    localSlideshowFranchiseId,
+    session?.squadSlideshowToken,
+    squadPlayers.length,
+  ]);
+
+  useEffect(() => {
+    if (!slideshowPlaying || !activeSlideshowFranchiseId) return;
+    if (squadPlayers.length === 0) {
+      setSlideshowPlaying(false);
+      return;
+    }
+    if (slideshowIndex >= squadPlayers.length) {
+      setSlideshowPlaying(false);
+      if (localSlideshowFranchiseId) {
+        setLocalSlideshowFranchiseId(null);
+      }
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSlideshowIndex(prev => prev + 1);
+    }, SQUAD_SLIDE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    activeSlideshowFranchiseId,
+    localSlideshowFranchiseId,
+    slideshowIndex,
+    slideshowPlaying,
+    squadPlayers.length,
+  ]);
+
+  const currentSlideshowPlayer =
+    slideshowPlaying && slideshowIndex < squadPlayers.length
+      ? squadPlayers[slideshowIndex]
+      : null;
 
   const onClockFranchise = useMemo(() => {
     if (!session || session.status !== 'IN_PROGRESS') return null;
@@ -197,11 +300,6 @@ export function DraftBoardPage() {
   const clockSeconds = Math.ceil(clockMs / 1000);
   const clockUrgent = clockActive && clockSeconds <= 30;
 
-  const recentPicks = useMemo(
-    () => [...draftedPicks].reverse().slice(0, 8),
-    [draftedPicks],
-  );
-
   const toggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement) {
@@ -214,102 +312,40 @@ export function DraftBoardPage() {
     }
   };
 
-  const heroPhoto = resolvePhoto(revealing);
+  const heroPhoto = resolvePickPhoto(revealing);
 
   return (
-    <div className="draft-board min-h-screen bg-mcl-forest-950 text-white overflow-hidden relative">
+    <div className="draft-board flex min-h-screen flex-col bg-mcl-forest-950 text-white overflow-hidden relative">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(163,207,45,0.12),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(212,175,55,0.08),_transparent_50%)]" />
 
-      {/* Fullscreen pick reveal — 15s */}
-      {revealing ? (
-        <div className="fixed inset-0 z-50 draft-board-reveal flex flex-col items-center justify-center overflow-hidden bg-[#020805]">
-          {/* Atmosphere */}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(212,175,55,0.22)_0%,_transparent_52%)]" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(163,207,45,0.14)_0%,_transparent_42%)]" />
-          <div className="pointer-events-none absolute -left-24 top-1/4 h-[55vh] w-[55vh] rounded-full bg-mcl-lime-500/10 blur-3xl" />
-          <div className="pointer-events-none absolute -right-24 bottom-1/4 h-[50vh] w-[50vh] rounded-full bg-mcl-gold-500/10 blur-3xl" />
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-mcl-gold-500/70 to-transparent" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-mcl-lime-500/50 to-transparent" />
+      {revealing && !currentSlideshowPlayer ? (
+        <DraftBoardPlayerReveal
+          mode="pick"
+          franchiseName={revealing.franchiseName}
+          playerName={revealing.playerName}
+          playerRole={revealing.playerRole}
+          playerCategory={revealing.playerCategory}
+          shirtNumber={revealing.shirtNumber}
+          photoUrl={heroPhoto}
+          pickNumber={revealing.pickNumber}
+          isAutoPick={revealing.isAutoPick}
+        />
+      ) : null}
 
-          <div className="relative z-10 flex h-full w-full max-w-[1400px] flex-col items-center justify-center px-6 py-8 md:px-10">
-            {/* Top brand strip */}
-            <div className="draft-board-reveal-badge mb-5 flex items-center gap-3 md:mb-7">
-              <img
-                src="/mcl-logo.png"
-                alt=""
-                className="h-10 w-10 rounded-full object-cover ring-2 ring-mcl-gold-500/60 md:h-12 md:w-12"
-              />
-              <div className="text-left">
-                <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-mcl-gold-400 md:text-xs">
-                  Markhor Cricket League
-                </p>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-mcl-silver-400 md:text-sm">
-                  Season 4 · Live Draft
-                </p>
-              </div>
-            </div>
-
-            {/* Pick badge */}
-            <div className="draft-board-reveal-badge mb-6 inline-flex items-center gap-3 rounded-full border border-mcl-gold-500/50 bg-mcl-gold-500/10 px-5 py-2.5 backdrop-blur-sm md:mb-8 md:px-7 md:py-3">
-              <span className="h-2 w-2 rounded-full bg-mcl-lime-500 draft-board-live-pulse" />
-              <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-mcl-gold-400 md:text-lg">
-                {revealing.isAutoPick ? 'Auto Pick' : 'New Pick'}
-              </p>
-              <span className="rounded-full bg-mcl-forest-900/80 px-3 py-1 text-sm font-extrabold text-white md:text-base">
-                #{revealing.pickNumber}
-              </span>
-            </div>
-
-            {/* Hero photo with premium rings */}
-            <div className="draft-board-reveal-photo relative mb-7 md:mb-9">
-              <div className="absolute -inset-6 rounded-full border border-mcl-lime-500/25 md:-inset-8" />
-              <div className="absolute -inset-3 rounded-full border border-mcl-gold-500/40 md:-inset-4" />
-              <div className="draft-board-reveal-ring relative overflow-hidden rounded-full">
-                {heroPhoto ? (
-                  <img
-                    src={heroPhoto}
-                    alt={revealing.playerName}
-                    className="h-[min(70vh,760px)] w-[min(70vh,760px)] rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-[min(70vh,760px)] w-[min(70vh,760px)] items-center justify-center rounded-full bg-gradient-to-b from-mcl-forest-700 to-mcl-forest-900">
-                    <span className="text-8xl font-extrabold tracking-tight text-mcl-lime-500 md:text-9xl">
-                      {shortName(revealing.playerName)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Player copy */}
-            <div className="draft-board-reveal-text text-center">
-              <h2 className="max-w-5xl text-5xl font-extrabold leading-[1.05] tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.55)] md:text-7xl lg:text-8xl">
-                {revealing.playerName}
-              </h2>
-            </div>
-            <div className="draft-board-reveal-text-delay mt-4 flex flex-col items-center gap-3 md:mt-5">
-              <p className="text-2xl font-extrabold text-mcl-lime-500 md:text-4xl lg:text-5xl">
-                {revealing.franchiseName}
-              </p>
-              <div className="mt-1 flex flex-wrap items-center justify-center gap-2 md:gap-3">
-                <span className="rounded-full border border-mcl-forest-600 bg-mcl-forest-900/80 px-4 py-1.5 text-sm font-bold uppercase tracking-wider text-mcl-silver-100 md:text-base">
-                  {revealing.playerRole}
-                </span>
-                {revealing.playerCategory ? (
-                  <span className="rounded-full border border-mcl-gold-500/35 bg-mcl-gold-500/10 px-4 py-1.5 text-sm font-bold uppercase tracking-wider text-mcl-gold-400 md:text-base">
-                    {revealing.playerCategory}
-                  </span>
-                ) : null}
-                {revealing.shirtNumber ? (
-                  <span className="rounded-full border border-mcl-lime-500/40 bg-mcl-lime-500/10 px-4 py-1.5 text-sm font-extrabold text-mcl-lime-400 md:text-base">
-                    #{revealing.shirtNumber}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </div>
+      {currentSlideshowPlayer && activeSlideshowFranchise ? (
+        <DraftBoardPlayerReveal
+          {...squadPlayerToRevealProps(
+            currentSlideshowPlayer,
+            activeSlideshowFranchise.name,
+            slideshowIndex,
+            squadPlayers.length,
+            resolvePhoto(
+              currentSlideshowPlayer.id,
+              currentSlideshowPlayer.profileImage,
+            ),
+          )}
+        />
       ) : null}
 
       <header className="relative z-10 flex items-center justify-between gap-4 px-6 md:px-10 pt-5 pb-3">
@@ -362,10 +398,9 @@ export function DraftBoardPage() {
         </div>
       ) : null}
 
-      <main className="relative z-10 px-6 md:px-10 pb-6 grid grid-rows-[1fr_auto] gap-4 min-h-[calc(100vh-6.5rem)]">
-        <section className="grid grid-cols-1 gap-4 items-stretch">
-          {/* On the clock — primary area */}
-          <div className="rounded-3xl border border-mcl-forest-600 bg-mcl-forest-900/80 p-6 md:p-12 flex flex-col justify-center overflow-hidden min-h-[55vh]">
+      <main className="relative z-10 flex flex-1 flex-col px-6 md:px-10 pb-6 min-h-0">
+        <section className="flex flex-1 flex-col">
+          <div className="flex flex-1 flex-col justify-center overflow-hidden rounded-3xl border border-mcl-forest-600 bg-mcl-forest-900/80 p-6 md:p-12 min-h-[calc(100vh-7rem)]">
             {session?.status === 'COMPLETED' ? (
               <div className="text-center draft-board-fade-in">
                 <p className="text-mcl-lime-500 text-sm md:text-base font-bold uppercase tracking-[0.25em] mb-3">
@@ -375,10 +410,77 @@ export function DraftBoardPage() {
                   All picks are in
                 </h2>
                 {lastPick ? (
-                  <p className="text-mcl-silver-400 text-lg md:text-2xl">
+                  <p className="text-mcl-silver-400 text-lg md:text-2xl mb-8">
                     Final pick · {lastPick.playerName} → {lastPick.franchiseName}
                   </p>
                 ) : null}
+
+                <div className="mx-auto max-w-5xl text-left">
+                  <div className="rounded-3xl border border-mcl-gold-500/30 bg-gradient-to-b from-mcl-forest-900/95 to-mcl-forest-950/90 p-5 shadow-[0_0_40px_rgba(212,175,55,0.08)] sm:p-7 md:p-9">
+                    <div className="mb-2 h-1 w-14 rounded-full bg-gradient-to-r from-mcl-gold-500 to-mcl-lime-500" />
+                    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 md:mb-8">
+                      <div>
+                        <h3 className="text-xs font-extrabold uppercase tracking-[0.28em] text-mcl-gold-400 sm:text-sm md:text-base">
+                          Show Franchise Squad on Screen
+                        </h3>
+                        <p className="mt-2 text-sm text-mcl-silver-400 sm:text-base md:text-lg">
+                          Select a franchise to showcase every player on the LED board.
+                        </p>
+                      </div>
+                      {slideshowPlaying || activeSlideshowFranchiseId ? (
+                        <button
+                          type="button"
+                          onClick={stopSlideshow}
+                          className="inline-flex items-center gap-2 rounded-full border border-red-400/40 bg-red-500/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-red-300 hover:bg-red-500/20 transition sm:text-sm">
+                          <Square size={14} />
+                          Stop
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+                      {franchises.map(franchise => {
+                        const squad = buildFranchiseSquadSlideshow(
+                          franchise,
+                          picks,
+                          lockedPlayers,
+                        );
+                        const isActive =
+                          activeSlideshowFranchiseId === franchise.id &&
+                          slideshowPlaying;
+                        return (
+                          <button
+                            key={franchise.id}
+                            type="button"
+                            disabled={squad.length === 0}
+                            onClick={() => startLocalSlideshow(franchise.id)}
+                            className={`group rounded-2xl border px-5 py-5 text-left transition-all duration-300 sm:px-6 sm:py-6 md:px-7 md:py-7 ${
+                              isActive
+                                ? 'border-mcl-lime-500 bg-mcl-lime-500/15 shadow-[0_0_32px_rgba(163,207,45,0.28)]'
+                                : squad.length === 0
+                                  ? 'border-mcl-forest-700 bg-mcl-forest-900/40 opacity-50 cursor-not-allowed'
+                                  : 'border-mcl-forest-600 bg-mcl-forest-800/80 hover:-translate-y-0.5 hover:border-mcl-gold-500/55 hover:bg-mcl-forest-800 hover:shadow-[0_8px_28px_rgba(212,175,55,0.12)]'
+                            }`}>
+                            <p
+                              className={`text-xl font-extrabold leading-tight sm:text-2xl md:text-3xl lg:text-[2rem] ${
+                                isActive
+                                  ? 'text-mcl-lime-400'
+                                  : 'text-white group-hover:text-mcl-gold-400'
+                              }`}>
+                              {franchise.name}
+                            </p>
+                            <p className="mt-3 text-sm font-bold uppercase tracking-[0.18em] text-mcl-lime-500 sm:text-base">
+                              {squad.length} players · 4s each
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-6 text-sm leading-relaxed text-mcl-silver-400 sm:text-base md:text-lg">
+                      Tap a franchise to play each squad member on this screen — photo,
+                      name, role, and details for 4 seconds, same as live picks.
+                    </p>
+                  </div>
+                </div>
               </div>
             ) : session?.status === 'IN_PROGRESS' && onClockFranchise ? (
               <div className="text-center draft-board-fade-in flex flex-col items-center justify-center flex-1">
@@ -403,9 +505,7 @@ export function DraftBoardPage() {
                 </div>
                 <p
                   className={`mt-6 text-sm md:text-lg font-semibold ${
-                    clockUrgent
-                      ? 'text-red-400'
-                      : 'text-mcl-silver-400'
+                    clockUrgent ? 'text-red-400' : 'text-mcl-silver-400'
                   }`}>
                   {clockUrgent
                     ? 'Hurry — under 30 seconds'
@@ -443,7 +543,7 @@ export function DraftBoardPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center draft-board-fade-in">
+              <div className="draft-board-fade-in flex flex-1 flex-col items-center justify-center text-center">
                 <p className="text-mcl-silver-400 text-sm md:text-base font-bold uppercase tracking-[0.3em] mb-4">
                   Draft Board
                 </p>
@@ -457,54 +557,6 @@ export function DraftBoardPage() {
               </div>
             )}
           </div>
-        </section>
-
-        <section className="rounded-2xl border border-mcl-forest-600 bg-mcl-forest-900/80 p-3 md:p-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-mcl-silver-400 mb-2 px-1">
-            Recent picks
-          </h3>
-          {recentPicks.length === 0 ? (
-            <p className="text-mcl-silver-400 text-xs px-1 py-3">
-              Picks will appear here as franchises select players.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-              {recentPicks.map(pick => {
-                const photo = resolvePhoto(pick);
-                return (
-                  <div
-                    key={pick.id}
-                    className="rounded-xl border border-mcl-forest-600 bg-mcl-forest-800/50 p-2">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      {photo ? (
-                        <img
-                          src={photo}
-                          alt=""
-                          className="w-8 h-8 rounded-full object-cover border border-mcl-forest-600"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-mcl-forest-700 text-mcl-lime-500 flex items-center justify-center text-[10px] font-bold">
-                          {shortName(pick.playerName)}
-                        </div>
-                      )}
-                      <span className="text-[10px] font-bold text-mcl-silver-400">
-                        #{pick.pickNumber}
-                      </span>
-                    </div>
-                    <p className="text-xs font-bold text-white truncate">
-                      {pick.playerName}
-                    </p>
-                    <p className="text-[10px] text-mcl-lime-500 truncate mt-0.5">
-                      {franchiseLabel(
-                        franchiseById.get(pick.franchiseId),
-                        pick.franchiseName,
-                      )}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </section>
       </main>
     </div>

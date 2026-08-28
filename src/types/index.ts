@@ -201,6 +201,8 @@ export interface DraftSession {
   startedAt?: Date;
   completedAt?: Date;
   createdBy?: string;
+  squadSlideshowFranchiseId?: string;
+  squadSlideshowToken?: number;
 }
 
 export interface DraftPick {
