@@ -345,7 +345,7 @@ function PremiumClockCard({
       <View style={clockStyles.digitsRow}>
         <ClockDigit
           value={m1}
-          color={digitColor}
+          color={digitColor}  
           backgroundColor={digitBg}
           borderColor={digitBorder}
           size={digitSize}
@@ -2351,7 +2351,7 @@ export function AdminDraftScreen() {
           <DraftSection
             icon="monitor-dashboard"
             title="Show Franchise Squad on LED Board"
-            hint="Tap a franchise to play each player on the hall draft board — photo and details for 4 seconds, same as live picks.">
+            hint="Tap a franchise to play each player on the hall draft board — photo and details for 5 seconds, same as live picks.">
             {session?.squadSlideshowFranchiseId ? (
               <PremiumButton
                 variant="outline"

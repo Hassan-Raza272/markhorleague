@@ -402,8 +402,11 @@ export function DraftBoardPage() {
         />
       ) : null}
 
-      {squadSlideReveal ? (
-        <DraftBoardPlayerReveal key={squadSlideReveal.key} {...squadSlideReveal.props} />
+      {squadSlideReveal && activeSlideshowFranchiseId ? (
+        <DraftBoardPlayerReveal
+          key={`squad-${activeSlideshowFranchiseId}`}
+          {...squadSlideReveal.props}
+        />
       ) : null}
 
       <header className="relative z-10 flex items-center justify-between gap-4 px-6 md:px-10 pt-5 pb-3">
@@ -527,7 +530,7 @@ export function DraftBoardPage() {
                               {franchise.name}
                             </p>
                             <p className="mt-3 text-sm font-bold uppercase tracking-[0.18em] text-mcl-lime-500 sm:text-base">
-                              {squad.length} players · 4s each
+                              {squad.length} players · 5s each
                             </p>
                           </button>
                         );
@@ -535,7 +538,7 @@ export function DraftBoardPage() {
                     </div>
                     <p className="mt-6 text-sm leading-relaxed text-mcl-silver-400 sm:text-base md:text-lg">
                       Tap a franchise to play each squad member on this screen — photo,
-                      name, role, and details for 4 seconds, same as live picks.
+                      name, role, and details for 5 seconds, same as live picks.
                     </p>
                   </div>
                 </div>

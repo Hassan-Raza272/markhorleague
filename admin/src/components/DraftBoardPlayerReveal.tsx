@@ -2,7 +2,7 @@ import { memo } from 'react';
 import type { SquadSlideshowPlayer } from '../utils/squadSlideshow';
 
 const REVEAL_MS = 15_000;
-export const SQUAD_SLIDE_MS = 4_000;
+export const SQUAD_SLIDE_MS = 5_000;
 
 function shortName(name: string): string {
   return name
@@ -64,7 +64,10 @@ export const DraftBoardPlayerReveal = memo(function DraftBoardPlayerReveal({
   ];
 
   return (
-    <div className="draft-board-reveal fixed inset-0 z-50 overflow-hidden">
+    <div
+      className={`draft-board-reveal fixed inset-0 z-50 overflow-hidden${
+        mode === 'squad' ? ' draft-board-reveal--squad' : ''
+      }`}>
       <div className="draft-board-reveal-bg" aria-hidden />
 
       <div className="draft-board-reveal-stage">
@@ -97,9 +100,16 @@ export const DraftBoardPlayerReveal = memo(function DraftBoardPlayerReveal({
           </div>
         </header>
 
-        {/* Main card */}
-        <div className="draft-board-reveal-card">
-          <div className="draft-board-reveal-photo-wrap draft-board-reveal-photo">
+        {/* Main card — slides in from right on squad transitions */}
+        <div
+          key={mode === 'squad' ? revealKey : undefined}
+          className={`draft-board-reveal-card${
+            mode === 'squad' ? ' draft-board-reveal-card-squad-enter' : ''
+          }`}>
+          <div
+            className={`draft-board-reveal-photo-wrap${
+              mode === 'pick' ? ' draft-board-reveal-photo' : ''
+            }`}>
             <div className="draft-board-reveal-photo-frame">
               {photoUrl ? (
                 <img
@@ -117,12 +127,18 @@ export const DraftBoardPlayerReveal = memo(function DraftBoardPlayerReveal({
             </div>
           </div>
 
-          <div className="draft-board-reveal-info draft-board-reveal-text">
+          <div
+            className={`draft-board-reveal-info${
+              mode === 'pick' ? ' draft-board-reveal-text' : ''
+            }`}>
             <p className="draft-board-reveal-eyebrow">Selected for</p>
             <h2 className="draft-board-reveal-name">{playerName}</h2>
             <p className="draft-board-reveal-franchise">{franchiseName}</p>
 
-            <div className="draft-board-reveal-meta draft-board-reveal-text-delay">
+            <div
+              className={`draft-board-reveal-meta${
+                mode === 'pick' ? ' draft-board-reveal-text-delay' : ''
+              }`}>
               {metaItems.map(item => (
                 <div key={item.label} className="draft-board-reveal-meta-item">
                   <span className="draft-board-reveal-meta-label">{item.label}</span>
@@ -134,7 +150,7 @@ export const DraftBoardPlayerReveal = memo(function DraftBoardPlayerReveal({
         </div>
 
         {hasNextSlide ? (
-          <div className="draft-board-reveal-slide-progress draft-board-reveal-text-delay" aria-hidden>
+          <div className="draft-board-reveal-slide-progress" aria-hidden>
             <p className="draft-board-reveal-slide-progress-label">
               <span className="draft-board-reveal-next-chevron">›</span>
               Next player
