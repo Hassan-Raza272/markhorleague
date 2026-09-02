@@ -57,40 +57,40 @@ export function DraftBoardPlayerReveal({
       <div className="pointer-events-none fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-mcl-gold-500/70 to-transparent" />
       <div className="pointer-events-none fixed inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-mcl-lime-500/50 to-transparent" />
 
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full flex-col items-center justify-center px-6 pb-8 sm:px-10 md:px-16 lg:px-20 xl:px-24">
-        <div className="draft-board-reveal-badge flex shrink-0 items-center gap-2 sm:gap-3">
+      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full flex-col items-center justify-start px-6 pb-8 pt-4 sm:px-10 sm:pt-5 md:px-16 md:pt-6 lg:px-20 lg:pt-8 xl:px-24">
+        <div className="draft-board-reveal-badge flex shrink-0 items-center gap-3 sm:gap-4 md:gap-5">
           <img
             src="/mcl-logo.png"
             alt=""
-            className="h-8 w-8 rounded-full object-cover ring-2 ring-mcl-gold-500/60 sm:h-10 sm:w-10 md:h-12 md:w-12"
+            className="h-12 w-12 rounded-full object-cover ring-2 ring-mcl-gold-500/60 sm:h-14 sm:w-14 md:h-16 md:w-16 lg:h-20 lg:w-20 xl:h-24 xl:w-24"
           />
           <div className="text-left">
-            <p className="text-[9px] font-bold uppercase tracking-[0.28em] text-mcl-gold-400 sm:text-[10px] md:text-xs">
+            <p className="text-sm font-extrabold uppercase tracking-[0.22em] text-mcl-gold-400 sm:text-base md:text-xl lg:text-2xl xl:text-3xl">
               Markhor Cricket League
             </p>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-mcl-silver-400 sm:text-xs md:text-sm">
+            <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-mcl-silver-400 sm:text-sm md:text-base lg:text-lg xl:text-xl">
               Season 4 · {mode === 'pick' ? 'Live Draft' : 'Official Squad'}
             </p>
           </div>
         </div>
 
-        <div className="draft-board-reveal-badge mt-3 inline-flex max-w-full shrink-0 flex-wrap items-center justify-center gap-2 rounded-full border border-mcl-gold-500/50 bg-mcl-gold-500/10 px-3 py-2 backdrop-blur-sm sm:mt-4 sm:gap-3 sm:px-5 sm:py-2.5 md:px-7 md:py-3">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-mcl-lime-500 draft-board-live-pulse" />
-          <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-mcl-gold-400 sm:text-sm md:text-lg">
+        <div className="draft-board-reveal-badge mt-4 inline-flex max-w-full shrink-0 flex-wrap items-center justify-center gap-2.5 rounded-full border border-mcl-gold-500/50 bg-mcl-gold-500/10 px-4 py-2.5 backdrop-blur-sm sm:mt-5 sm:gap-3 sm:px-6 sm:py-3 md:mt-6 md:px-8 md:py-3.5 lg:px-10 lg:py-4">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-mcl-lime-500 draft-board-live-pulse sm:h-3 sm:w-3" />
+          <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-mcl-gold-400 sm:text-base md:text-xl lg:text-2xl">
             {badgeLabel}
           </p>
           {mode === 'pick' && pickNumber != null ? (
-            <span className="rounded-full bg-mcl-forest-900/80 px-2.5 py-0.5 text-xs font-extrabold text-white sm:px-3 sm:py-1 sm:text-sm md:text-base">
+            <span className="rounded-full bg-mcl-forest-900/80 px-3 py-1 text-sm font-extrabold text-white sm:px-4 sm:py-1.5 sm:text-base md:text-lg lg:text-xl">
               #{pickNumber}
             </span>
           ) : null}
           {mode === 'squad' && squadIndex != null && squadTotal != null ? (
-            <span className="rounded-full bg-mcl-forest-900/80 px-2.5 py-0.5 text-xs font-extrabold text-white sm:px-3 sm:py-1 sm:text-sm md:text-base">
+            <span className="rounded-full bg-mcl-forest-900/80 px-3 py-1 text-sm font-extrabold text-white sm:px-4 sm:py-1.5 sm:text-base md:text-lg lg:text-xl">
               {squadIndex + 1}/{squadTotal}
             </span>
           ) : null}
           {mode === 'squad' && squadBadge ? (
-            <span className="rounded-full border border-mcl-gold-500/40 bg-mcl-gold-500/15 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-mcl-gold-400 sm:px-3 sm:py-1 sm:text-xs">
+            <span className="rounded-full border border-mcl-gold-500/40 bg-mcl-gold-500/15 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-mcl-gold-400 sm:text-sm md:text-base">
               {squadBadge}
             </span>
           ) : null}
