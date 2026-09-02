@@ -42,8 +42,6 @@ npm-debug.log
 yarn-error.log
 
 # Env / secrets
-.env
-.env.local
 admin/.env
 admin/.env.local
 
@@ -79,3 +77,7 @@ admin/.env.local
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+config.bat
