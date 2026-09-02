@@ -539,6 +539,29 @@ body {
   animation: draft-board-reveal-badge 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@keyframes draft-board-squad-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(18vw);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.draft-board-reveal--squad {
+  animation: none;
+}
+
+.draft-board-reveal--squad .draft-board-reveal-header {
+  animation: none;
+}
+
+.draft-board-reveal-card-squad-enter {
+  animation: draft-board-squad-slide-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Squad slideshow — next slide progress */
 .draft-board-reveal-slide-progress {
   display: flex;
