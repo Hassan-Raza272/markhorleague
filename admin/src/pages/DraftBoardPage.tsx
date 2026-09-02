@@ -29,6 +29,12 @@ import {
   buildFranchiseSquadSlideshow,
   type LockedSquadPlayer,
 } from '../utils/squadSlideshow';
+import { preloadImage, waitForPhotoUrl } from '../utils/preloadImage';
+
+type PickRevealState = {
+  pick: DraftPick;
+  photoUrl?: string;
+};
 
 function statusLabel(status: DraftSession['status'] | undefined): string {
   switch (status) {
@@ -51,17 +57,27 @@ export function DraftBoardPage() {
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [revealPickId, setRevealPickId] = useState<string | null>(null);
+  const [pickReveal, setPickReveal] = useState<PickRevealState | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [localSlideshowFranchiseId, setLocalSlideshowFranchiseId] = useState<
     string | null
   >(null);
   const [slideshowIndex, setSlideshowIndex] = useState(0);
   const [slideshowPlaying, setSlideshowPlaying] = useState(false);
+  const [squadSlideReveal, setSquadSlideReveal] = useState<{
+    key: string;
+    props: ReturnType<typeof squadPlayerToRevealProps>;
+  } | null>(null);
   const lastPickCount = useRef(0);
   const revealTimer = useRef<number | null>(null);
+  const revealRunId = useRef(0);
+  const revealPickIdRef = useRef<string | null>(null);
   const boardReady = useRef(false);
+  const photosRef = useRef(photos);
   const slideshowKeyRef = useRef('');
+  const squadSlideRunId = useRef(0);
+
+  photosRef.current = photos;
 
   const mergePhotos = useCallback((next: Record<string, string>) => {
     setPhotos(prev => ({ ...prev, ...next }));
@@ -117,19 +133,42 @@ export function DraftBoardPage() {
       return;
     }
     if (
-      session?.status === 'IN_PROGRESS' &&
-      nonLocks.length > lastPickCount.current &&
-      nonLocks.length > 0
+      session?.status !== 'IN_PROGRESS' ||
+      nonLocks.length <= lastPickCount.current ||
+      nonLocks.length === 0
     ) {
-      const latest = nonLocks[nonLocks.length - 1];
-      setRevealPickId(latest.id);
+      lastPickCount.current = nonLocks.length;
+      return;
+    }
+
+    const latest = nonLocks[nonLocks.length - 1];
+    const runId = ++revealRunId.current;
+    lastPickCount.current = nonLocks.length;
+
+    void (async () => {
+      const photoUrl = await waitForPhotoUrl(
+        latest.playerDocId,
+        latest.profileImage,
+        () => photosRef.current,
+      );
+      if (runId !== revealRunId.current) return;
+
+      if (photoUrl) {
+        await preloadImage(photoUrl);
+        if (runId !== revealRunId.current) return;
+      }
+
+      setPickReveal({ pick: latest, photoUrl });
+      revealPickIdRef.current = latest.id;
       if (revealTimer.current) window.clearTimeout(revealTimer.current);
       revealTimer.current = window.setTimeout(() => {
-        setRevealPickId(null);
+        if (revealPickIdRef.current === latest.id) {
+          setPickReveal(null);
+          revealPickIdRef.current = null;
+        }
         revealTimer.current = null;
       }, REVEAL_MS);
-    }
-    lastPickCount.current = nonLocks.length;
+    })();
   }, [picks, session?.status]);
 
   useEffect(() => {
@@ -165,8 +204,6 @@ export function DraftBoardPage() {
   );
 
   const lastPick = draftedPicks[draftedPicks.length - 1] ?? null;
-  const revealing =
-    revealPickId && lastPick && lastPick.id === revealPickId ? lastPick : null;
 
   const remoteSlideshowFranchiseId =
     session?.status === 'COMPLETED'
@@ -188,20 +225,6 @@ export function DraftBoardPage() {
       lockedPlayers,
     );
   }, [activeSlideshowFranchise, lockedPlayers, picks]);
-
-  const resolvePhoto = useCallback(
-    (playerDocId: string, profileImage?: string) =>
-      profileImage || photos[playerDocId] || undefined,
-    [photos],
-  );
-
-  const resolvePickPhoto = useCallback(
-    (pick: DraftPick | null | undefined) => {
-      if (!pick) return undefined;
-      return resolvePhoto(pick.playerDocId, pick.profileImage);
-    },
-    [resolvePhoto],
-  );
 
   const startLocalSlideshow = (franchiseId: string) => {
     setLocalSlideshowFranchiseId(franchiseId);
@@ -272,6 +295,52 @@ export function DraftBoardPage() {
       ? squadPlayers[slideshowIndex]
       : null;
 
+  useEffect(() => {
+    if (!currentSlideshowPlayer || !activeSlideshowFranchise) {
+      setSquadSlideReveal(null);
+      return;
+    }
+
+    const runId = ++squadSlideRunId.current;
+    const player = currentSlideshowPlayer;
+    const franchiseName = activeSlideshowFranchise.name;
+    const slideKey = `${activeSlideshowFranchiseId}:${slideshowIndex}:${player.id}`;
+
+    void (async () => {
+      const photoUrl = await waitForPhotoUrl(
+        player.id,
+        player.profileImage,
+        () => photosRef.current,
+        800,
+      );
+      if (runId !== squadSlideRunId.current) return;
+
+      const resolvedPhoto = photoUrl ?? player.profileImage;
+      if (resolvedPhoto) {
+        await preloadImage(resolvedPhoto);
+        if (runId !== squadSlideRunId.current) return;
+      }
+
+      setSquadSlideReveal({
+        key: slideKey,
+        props: squadPlayerToRevealProps(
+          player,
+          franchiseName,
+          slideshowIndex,
+          squadPlayers.length,
+          resolvedPhoto,
+          slideKey,
+        ),
+      });
+    })();
+  }, [
+    activeSlideshowFranchise,
+    activeSlideshowFranchiseId,
+    currentSlideshowPlayer,
+    slideshowIndex,
+    squadPlayers.length,
+  ]);
+
   const onClockFranchise = useMemo(() => {
     if (!session || session.status !== 'IN_PROGRESS') return null;
     if (franchiseOrder.length === 0) return null;
@@ -312,40 +381,29 @@ export function DraftBoardPage() {
     }
   };
 
-  const heroPhoto = resolvePickPhoto(revealing);
-
   return (
     <div className="draft-board flex min-h-screen flex-col bg-mcl-forest-950 text-white overflow-hidden relative">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(163,207,45,0.12),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(212,175,55,0.08),_transparent_50%)]" />
 
-      {revealing && !currentSlideshowPlayer ? (
+      {pickReveal && !currentSlideshowPlayer ? (
         <DraftBoardPlayerReveal
+          key={pickReveal.pick.id}
+          revealKey={pickReveal.pick.id}
           mode="pick"
-          franchiseName={revealing.franchiseName}
-          playerName={revealing.playerName}
-          playerRole={revealing.playerRole}
-          playerCategory={revealing.playerCategory}
-          shirtNumber={revealing.shirtNumber}
-          photoUrl={heroPhoto}
-          pickNumber={revealing.pickNumber}
-          isAutoPick={revealing.isAutoPick}
+          franchiseName={pickReveal.pick.franchiseName}
+          playerName={pickReveal.pick.playerName}
+          playerRole={pickReveal.pick.playerRole}
+          playerCategory={pickReveal.pick.playerCategory}
+          shirtNumber={pickReveal.pick.shirtNumber}
+          photoUrl={pickReveal.photoUrl}
+          pickNumber={pickReveal.pick.pickNumber}
+          isAutoPick={pickReveal.pick.isAutoPick}
         />
       ) : null}
 
-      {currentSlideshowPlayer && activeSlideshowFranchise ? (
-        <DraftBoardPlayerReveal
-          {...squadPlayerToRevealProps(
-            currentSlideshowPlayer,
-            activeSlideshowFranchise.name,
-            slideshowIndex,
-            squadPlayers.length,
-            resolvePhoto(
-              currentSlideshowPlayer.id,
-              currentSlideshowPlayer.profileImage,
-            ),
-          )}
-        />
+      {squadSlideReveal ? (
+        <DraftBoardPlayerReveal key={squadSlideReveal.key} {...squadSlideReveal.props} />
       ) : null}
 
       <header className="relative z-10 flex items-center justify-between gap-4 px-6 md:px-10 pt-5 pb-3">
