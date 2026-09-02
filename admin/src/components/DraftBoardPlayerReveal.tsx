@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { SquadSlideshowPlayer } from '../utils/squadSlideshow';
 
 const REVEAL_MS = 15_000;
@@ -13,6 +14,7 @@ function shortName(name: string): string {
 }
 
 type Props = {
+  revealKey: string;
   mode: 'pick' | 'squad';
   franchiseName: string;
   playerName: string;
@@ -27,7 +29,8 @@ type Props = {
   squadBadge?: 'OWNER' | 'LOCK' | 'PICK';
 };
 
-export function DraftBoardPlayerReveal({
+export const DraftBoardPlayerReveal = memo(function DraftBoardPlayerReveal({
+  revealKey,
   mode,
   franchiseName,
   playerName,
@@ -48,109 +51,124 @@ export function DraftBoardPlayerReveal({
         : 'New Pick'
       : 'Squad Player';
 
+  const hasNextSlide =
+    mode === 'squad' &&
+    squadIndex != null &&
+    squadTotal != null &&
+    squadIndex + 1 < squadTotal;
+
+  const metaItems = [
+    { label: 'Role', value: playerRole },
+    ...(playerCategory ? [{ label: 'Category', value: playerCategory }] : []),
+    ...(shirtNumber ? [{ label: 'Shirt', value: `#${shirtNumber}` }] : []),
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 draft-board-reveal overflow-y-auto overflow-x-hidden bg-[#020805]">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(212,175,55,0.22)_0%,_transparent_52%)]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(163,207,45,0.14)_0%,_transparent_42%)]" />
-      <div className="pointer-events-none fixed -left-24 top-1/4 h-[55vh] w-[55vh] rounded-full bg-mcl-lime-500/10 blur-3xl" />
-      <div className="pointer-events-none fixed -right-24 bottom-1/4 h-[50vh] w-[50vh] rounded-full bg-mcl-gold-500/10 blur-3xl" />
-      <div className="pointer-events-none fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-mcl-gold-500/70 to-transparent" />
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-mcl-lime-500/50 to-transparent" />
+    <div className="draft-board-reveal fixed inset-0 z-50 overflow-hidden">
+      <div className="draft-board-reveal-bg" aria-hidden />
 
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full flex-col items-center justify-start px-6 pb-8 pt-4 sm:px-10 sm:pt-5 md:px-16 md:pt-6 lg:px-20 lg:pt-8 xl:px-24">
-        <div className="draft-board-reveal-badge flex shrink-0 items-center gap-3 sm:gap-4 md:gap-5">
-          <img
-            src="/mcl-logo.png"
-            alt=""
-            className="h-12 w-12 rounded-full object-cover ring-2 ring-mcl-gold-500/60 sm:h-14 sm:w-14 md:h-16 md:w-16 lg:h-20 lg:w-20 xl:h-24 xl:w-24"
-          />
-          <div className="text-left">
-            <p className="text-sm font-extrabold uppercase tracking-[0.22em] text-mcl-gold-400 sm:text-base md:text-xl lg:text-2xl xl:text-3xl">
-              Markhor Cricket League
-            </p>
-            <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-mcl-silver-400 sm:text-sm md:text-base lg:text-lg xl:text-xl">
-              Season 4 · {mode === 'pick' ? 'Live Draft' : 'Official Squad'}
-            </p>
+      <div className="draft-board-reveal-stage">
+        {/* Top brand bar */}
+        <header className="draft-board-reveal-header draft-board-reveal-badge">
+          <div className="draft-board-reveal-brand">
+            <img src="/mcl-logo.png" alt="" className="draft-board-reveal-logo" />
+            <div>
+              <p className="draft-board-reveal-league">Markhor Cricket League</p>
+              <p className="draft-board-reveal-season">
+                Season 4 · {mode === 'pick' ? 'Live Draft' : 'Official Squad'}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="draft-board-reveal-badge mt-4 inline-flex max-w-full shrink-0 flex-wrap items-center justify-center gap-2.5 rounded-full border border-mcl-gold-500/50 bg-mcl-gold-500/10 px-4 py-2.5 backdrop-blur-sm sm:mt-5 sm:gap-3 sm:px-6 sm:py-3 md:mt-6 md:px-8 md:py-3.5 lg:px-10 lg:py-4">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-mcl-lime-500 draft-board-live-pulse sm:h-3 sm:w-3" />
-          <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-mcl-gold-400 sm:text-base md:text-xl lg:text-2xl">
-            {badgeLabel}
-          </p>
-          {mode === 'pick' && pickNumber != null ? (
-            <span className="rounded-full bg-mcl-forest-900/80 px-3 py-1 text-sm font-extrabold text-white sm:px-4 sm:py-1.5 sm:text-base md:text-lg lg:text-xl">
-              #{pickNumber}
-            </span>
-          ) : null}
-          {mode === 'squad' && squadIndex != null && squadTotal != null ? (
-            <span className="rounded-full bg-mcl-forest-900/80 px-3 py-1 text-sm font-extrabold text-white sm:px-4 sm:py-1.5 sm:text-base md:text-lg lg:text-xl">
-              {squadIndex + 1}/{squadTotal}
-            </span>
-          ) : null}
-          {mode === 'squad' && squadBadge ? (
-            <span className="rounded-full border border-mcl-gold-500/40 bg-mcl-gold-500/15 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-mcl-gold-400 sm:text-sm md:text-base">
-              {squadBadge}
-            </span>
-          ) : null}
-        </div>
+          <div className="draft-board-reveal-status">
+            <span className="draft-board-reveal-live-dot" aria-hidden />
+            <span>{badgeLabel}</span>
+            {mode === 'pick' && pickNumber != null ? (
+              <span className="draft-board-reveal-status-chip">#{pickNumber}</span>
+            ) : null}
+            {mode === 'squad' && squadIndex != null && squadTotal != null ? (
+              <span className="draft-board-reveal-status-chip">
+                {squadIndex + 1}/{squadTotal}
+              </span>
+            ) : null}
+            {mode === 'squad' && squadBadge ? (
+              <span className="draft-board-reveal-status-tag">{squadBadge}</span>
+            ) : null}
+          </div>
+        </header>
 
-        <div className="mx-auto mt-10 flex w-fit max-w-full flex-row items-center justify-center gap-4 sm:mt-12 sm:gap-6 md:mt-16 md:gap-10 lg:mt-20 lg:gap-14">
-          <div className="draft-board-reveal-photo relative shrink-0">
-            <div className="absolute -inset-3 rounded-[28px] border border-mcl-lime-500/25 sm:-inset-4 sm:rounded-[32px] md:-inset-6 md:rounded-[40px] lg:-inset-8 lg:rounded-[48px]" />
-            <div className="absolute -inset-1.5 rounded-[24px] border border-mcl-gold-500/40 sm:-inset-2.5 sm:rounded-[28px] md:-inset-4 md:rounded-[36px]" />
-            <div className="draft-board-reveal-ring relative aspect-square overflow-hidden rounded-[24px] sm:rounded-[28px] md:rounded-[36px] lg:rounded-[44px] xl:rounded-[52px]">
+        {/* Main card */}
+        <div className="draft-board-reveal-card">
+          <div className="draft-board-reveal-photo-wrap draft-board-reveal-photo">
+            <div className="draft-board-reveal-photo-frame">
               {photoUrl ? (
                 <img
                   src={photoUrl}
                   alt={playerName}
-                  className="aspect-square h-[clamp(200px,42dvh,620px)] w-[clamp(200px,42dvh,620px)] rounded-[24px] object-cover sm:h-[clamp(260px,48dvh,700px)] sm:w-[clamp(260px,48dvh,700px)] sm:rounded-[28px] md:h-[clamp(320px,58dvh,780px)] md:w-[clamp(320px,58dvh,780px)] md:rounded-[36px] lg:h-[clamp(380px,66dvh,860px)] lg:w-[clamp(380px,66dvh,860px)] lg:rounded-[44px] xl:h-[clamp(420px,72dvh,920px)] xl:w-[clamp(420px,72dvh,920px)] xl:rounded-[52px]"
+                  loading="eager"
+                  decoding="async"
+                  className="draft-board-reveal-photo-img"
                 />
               ) : (
-                <div className="flex aspect-square h-[clamp(200px,42dvh,620px)] w-[clamp(200px,42dvh,620px)] items-center justify-center rounded-[24px] bg-gradient-to-b from-mcl-forest-700 to-mcl-forest-900 sm:h-[clamp(260px,48dvh,700px)] sm:w-[clamp(260px,48dvh,700px)] sm:rounded-[28px] md:h-[clamp(320px,58dvh,780px)] md:w-[clamp(320px,58dvh,780px)] md:rounded-[36px] lg:h-[clamp(380px,66dvh,860px)] lg:w-[clamp(380px,66dvh,860px)] lg:rounded-[44px] xl:h-[clamp(420px,72dvh,920px)] xl:w-[clamp(420px,72dvh,920px)] xl:rounded-[52px]">
-                  <span className="text-6xl font-extrabold tracking-tight text-mcl-lime-500 sm:text-7xl md:text-8xl lg:text-9xl">
-                    {shortName(playerName)}
-                  </span>
+                <div className="draft-board-reveal-photo-fallback">
+                  {shortName(playerName)}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex max-w-[min(100%,520px)] shrink-0 flex-col items-start justify-center gap-3 text-left sm:gap-4 md:max-w-[560px] md:gap-4 lg:max-w-[640px]">
-            <div className="draft-board-reveal-text w-full">
-              <h2 className="text-xl font-extrabold leading-tight tracking-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.55)] sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl">
-                {playerName}
-              </h2>
-            </div>
+          <div className="draft-board-reveal-info draft-board-reveal-text">
+            <p className="draft-board-reveal-eyebrow">Selected for</p>
+            <h2 className="draft-board-reveal-name">{playerName}</h2>
+            <p className="draft-board-reveal-franchise">{franchiseName}</p>
 
-            <div className="draft-board-reveal-text-delay flex w-full flex-col items-start gap-3 md:gap-4">
-              <p className="text-base font-extrabold leading-snug text-mcl-lime-500 sm:text-xl md:text-3xl lg:text-4xl xl:text-5xl">
-                {franchiseName}
-              </p>
-
-              <div className="flex max-w-full flex-wrap items-center justify-start gap-1.5 sm:gap-2 md:gap-3">
-                <span className="rounded-full border border-mcl-forest-600 bg-mcl-forest-900/80 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-mcl-silver-100 sm:px-4 sm:py-1.5 sm:text-sm md:text-base">
-                  {playerRole}
-                </span>
-                {playerCategory ? (
-                  <span className="rounded-full border border-mcl-gold-500/35 bg-mcl-gold-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-mcl-gold-400 sm:px-4 sm:py-1.5 sm:text-sm md:text-base">
-                    {playerCategory}
-                  </span>
-                ) : null}
-                {shirtNumber ? (
-                  <span className="rounded-full border border-mcl-lime-500/40 bg-mcl-lime-500/10 px-3 py-1 text-[11px] font-extrabold text-mcl-lime-400 sm:px-4 sm:py-1.5 sm:text-sm md:text-base">
-                    #{shirtNumber}
-                  </span>
-                ) : null}
-              </div>
+            <div className="draft-board-reveal-meta draft-board-reveal-text-delay">
+              {metaItems.map(item => (
+                <div key={item.label} className="draft-board-reveal-meta-item">
+                  <span className="draft-board-reveal-meta-label">{item.label}</span>
+                  <span className="draft-board-reveal-meta-value">{item.value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+
+        {hasNextSlide ? (
+          <div className="draft-board-reveal-slide-progress draft-board-reveal-text-delay" aria-hidden>
+            <p className="draft-board-reveal-slide-progress-label">
+              <span className="draft-board-reveal-next-chevron">›</span>
+              Next player
+              <span className="draft-board-reveal-next-chevron draft-board-reveal-next-chevron-delay">›</span>
+            </p>
+            <div className="draft-board-reveal-slide-progress-track">
+              <div
+                key={revealKey}
+                className="draft-board-reveal-slide-progress-bar"
+                style={{ animationDuration: `${SQUAD_SLIDE_MS}ms` }}
+              />
+            </div>
+            {squadTotal != null && squadTotal <= 12 ? (
+              <div className="draft-board-reveal-slide-dots">
+                {Array.from({ length: squadTotal }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`draft-board-reveal-slide-dot${
+                      i === squadIndex
+                        ? ' draft-board-reveal-slide-dot-active'
+                        : i < (squadIndex ?? 0)
+                          ? ' draft-board-reveal-slide-dot-done'
+                          : ''
+                    }`}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
-}
+});
 
 export { REVEAL_MS };
 
@@ -160,8 +178,10 @@ export function squadPlayerToRevealProps(
   index: number,
   total: number,
   photoUrl?: string,
+  revealKey?: string,
 ) {
   return {
+    revealKey: revealKey ?? `${player.id}-${index}`,
     mode: 'squad' as const,
     franchiseName,
     playerName: player.name,
