@@ -344,7 +344,7 @@ export function PlayerDetailPage() {
                   <p className="text-xs font-semibold text-mcl-silver-400 uppercase tracking-wider mb-1">
                     Registration Fee
                   </p>
-                  <p className="text-sm font-bold text-mcl-gold-400">PKR 2,500</p>
+                  <p className="text-sm font-bold text-mcl-gold-400">PKR 3,000</p>
                 </div>
                 <div className="py-3 border-b border-mcl-forest-700">
                   <p className="text-xs font-semibold text-mcl-silver-400 uppercase tracking-wider mb-1">
