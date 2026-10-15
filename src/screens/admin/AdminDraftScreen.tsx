@@ -36,7 +36,6 @@ import {
   ensureFranchiseOwnerLocked,
   getFranchiseOwnerPlayer,
   getFranchises,
-  getFranchisesMissingExtraLocks,
   getOnClockFranchise,
   isPlayerDraftEligible,
   lockPlayerForFranchise,
@@ -76,7 +75,7 @@ import {
   isPickClockActive,
   isPickClockPaused,
 } from '../../utils/pickClock';
-import { DRAFT } from '../../constants';
+import { DRAFT, LOCK_RETAINED_LABEL } from '../../constants';
 import type { DraftPick, DraftSession, Franchise, Player } from '../../types';
 import { getCategoryLabel } from '../../utils/validation';
 import { FranchiseLockSection } from './FranchiseLockSection';
@@ -831,11 +830,6 @@ export function AdminDraftScreen() {
     [activeFranchiseCount, draftPoolCount],
   );
 
-  const missingLockAssignments = useMemo(
-    () => getFranchisesMissingExtraLocks(franchises, players),
-    [franchises, players],
-  );
-
   const pickProgress = useMemo(() => {
     const remaining = eligiblePlayers.length;
     const total =
@@ -1029,7 +1023,7 @@ export function AdminDraftScreen() {
     const row = franchiseSetup[index];
     alert(
       'Remove franchise?',
-      `${row?.name || `F${index + 1}`} will be removed when you save. Locked players will be unlocked and the franchise admin will lose access.`,
+      `${row?.name || `F${index + 1}`} will be removed when you save. ${LOCK_RETAINED_LABEL} players will be unlocked and the franchise admin will lose access.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -1070,21 +1064,7 @@ export function AdminDraftScreen() {
     if (setupIds !== savedIds) {
       alert(
         'Save franchises first',
-        'Save your franchise list, then assign locked players to every franchise before starting the draft.',
-      );
-      return;
-    }
-    const missingLocks = getFranchisesMissingExtraLocks(franchises, players);
-    if (missingLocks.length > 0) {
-      const details = missingLocks
-        .map(
-          item =>
-            `${item.franchise.name} (${item.locked}/${DRAFT.LOCKS_PER_FRANCHISE})`,
-        )
-        .join('\n');
-      alert(
-        'Locked players required',
-        `Assign ${DRAFT.LOCKS_PER_FRANCHISE} locked players to every franchise before starting the draft.\n\n${details}`,
+        'Save your franchise list before starting the draft.',
       );
       return;
     }
@@ -1164,8 +1144,10 @@ export function AdminDraftScreen() {
       );
     } catch (e: unknown) {
       alert(
-        'Lock failed',
-        e instanceof Error ? e.message : 'Could not lock this player',
+        `${LOCK_RETAINED_LABEL} failed`,
+        e instanceof Error
+          ? e.message
+          : `Could not ${LOCK_RETAINED_LABEL} this player`,
       );
     } finally {
       setBusy(null);
@@ -1940,16 +1922,9 @@ export function AdminDraftScreen() {
           </View>
           <Text style={styles.progressHint}>
             {isFranchiseAdmin && session?.status === 'SETUP' &&
-              'You are auto-locked as owner. Super admin will assign 3 locked players. You can make yourself or any locked player captain.'}
+              `You are auto-locked as owner. Super admin may assign up to ${DRAFT.LOCKS_PER_FRANCHISE} ${LOCK_RETAINED_LABEL} players. You can make yourself or any ${LOCK_RETAINED_LABEL} player captain.`}
             {isSuperAdmin && isSetup &&
-              (missingLockAssignments.length > 0
-                ? `Assign ${DRAFT.LOCKS_PER_FRANCHISE} locked players to every franchise before starting. Incomplete: ${missingLockAssignments
-                    .map(
-                      item =>
-                        `${item.franchise.name} (${item.locked}/${DRAFT.LOCKS_PER_FRANCHISE})`,
-                    )
-                    .join(', ')}.`
-                : `All franchises have ${DRAFT.LOCKS_PER_FRANCHISE} locked players. Draft pool is ${draftPoolCount} unlocked approved players.`)}
+              `Assign up to ${DRAFT.LOCKS_PER_FRANCHISE} ${LOCK_RETAINED_LABEL} players per franchise (optional). Draft pool is ${draftPoolCount} unlocked approved players.`}
               {isLive &&
               nextPickDetails &&
               `Pick #${session!.currentPickNumber} · Round ${nextPickDetails.round} of ${draftSize.totalRounds} · ${activeFranchiseCount} franchises · ${pickProgress.remaining} eligible left`}
@@ -2011,7 +1986,7 @@ export function AdminDraftScreen() {
           <DraftSection
             icon="shield-crown-outline"
             title="Franchise Setup"
-            hint={`Add or remove franchises, then save. The pick order uses only these teams: ${franchiseSetup.length} franchises means round 1 has ${franchiseSetup.length} picks, then round 2 starts. Draft pool is ${draftPoolCount} unlocked approved players (${draftSize.totalRounds} rounds). Super admin assigns ${DRAFT.LOCKS_PER_FRANCHISE} locked players per franchise. Owners are auto-locked. Order rotates each round (F1 first, then F2, wrapping around).`}>
+            hint={`Add or remove franchises, then save. The pick order uses only these teams: ${franchiseSetup.length} franchises means round 1 has ${franchiseSetup.length} picks, then round 2 starts. Draft pool is ${draftPoolCount} unlocked approved players (${draftSize.totalRounds} rounds). Super admin may assign up to ${DRAFT.LOCKS_PER_FRANCHISE} ${LOCK_RETAINED_LABEL} players per franchise. Owners are auto-locked. Order rotates each round (F1 first, then F2, wrapping around).`}>
             {franchiseSetup.map((row, index) => (
               <View key={row.id} style={styles.franchiseBlock}>
                 <View style={styles.franchiseBlockHeader}>
@@ -2090,10 +2065,7 @@ export function AdminDraftScreen() {
               <PremiumButton
                 onPress={handleStartDraft}
                 loading={busy === 'start'}
-                disabled={
-                  missingLockAssignments.length > 0 ||
-                  (!!busy && busy !== 'start')
-                }
+                disabled={!!busy && busy !== 'start'}
                 style={
                   wideLayout
                     ? styles.setupActionButtonWide
@@ -2138,7 +2110,7 @@ export function AdminDraftScreen() {
             <DraftSection
               icon="account-search"
               title="Eligible Players"
-              hint={`Approved players still available for the draft. Franchise owners and locked players (1 owner + 3 locks per team) are already on a squad and are not listed here.${
+              hint={`Approved players still available for the draft. Franchise owners and ${LOCK_RETAINED_LABEL} players (1 owner + up to ${DRAFT.LOCKS_PER_FRANCHISE} ${LOCK_RETAINED_LABEL} per team) are already on a squad and are not listed here.${
                 isFranchiseAdmin && !isMyTurn
                   ? ' You can pick only when your franchise is on the clock.'
                   : isFranchiseAdmin && isMyTurn && !clockActive
@@ -2173,7 +2145,7 @@ export function AdminDraftScreen() {
               <DraftSection
                 icon="account-group"
                 title="My Squad Picks"
-                hint="Tap Make Captain on yourself or any locked player.">
+                hint={`Tap Make Captain on yourself or any ${LOCK_RETAINED_LABEL} player.`}>
                 {myLockedPlayers.length === 0 && myPicks.length === 0 ? (
                   <Text style={styles.emptyText}>No squad picks yet.</Text>
                 ) : (
@@ -2185,8 +2157,15 @@ export function AdminDraftScreen() {
                         myFranchise?.captainPlayerId === player.id;
                       return (
                         <View key={`lock-${player.id}`} style={styles.pickRow}>
-                          <Text style={styles.pickNumber}>
-                            {player.userId === user?.uid ? 'OWNER' : 'LOCK'}
+                          <Text
+                            style={[
+                              styles.pickNumber,
+                              player.userId !== user?.uid && styles.pickLockLabel,
+                            ]}
+                            numberOfLines={2}>
+                            {player.userId === user?.uid
+                              ? 'OWNER'
+                              : LOCK_RETAINED_LABEL}
                           </Text>
                           {img ? (
                             <Image source={{ uri: img }} style={styles.pickAvatar} />
@@ -2203,7 +2182,7 @@ export function AdminDraftScreen() {
                             <Text style={styles.pickMeta} numberOfLines={1}>
                               {player.userId === user?.uid
                                 ? 'Team owner · Auto locked'
-                                : `Locked · ${player.role}`}
+                                : `${LOCK_RETAINED_LABEL} · ${player.role}`}
                             </Text>
                           </View>
                           {!isCaptain && franchiseId ? (
@@ -2876,8 +2855,16 @@ const styles = StyleSheet.create({
   pickNumber: {
     color: colors.gold[500],
     fontWeight: '900',
-    width: 48,
+    minWidth: 48,
+    maxWidth: 88,
     fontSize: 11,
+    textAlign: 'center',
+    flexShrink: 0,
+  },
+  pickLockLabel: {
+    fontSize: 9,
+    lineHeight: 11,
+    letterSpacing: 0,
   },
   pickAvatar: {
     width: 38,

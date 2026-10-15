@@ -1,5 +1,12 @@
 import { memo } from 'react';
+import { LOCK_RETAINED_LABEL } from '../constants/draft';
 import type { SquadSlideshowPlayer } from '../utils/squadSlideshow';
+
+const SQUAD_BADGE_LABEL: Record<'OWNER' | 'LOCK' | 'PICK', string> = {
+  OWNER: 'Owner',
+  LOCK: LOCK_RETAINED_LABEL,
+  PICK: 'Pick',
+};
 
 const REVEAL_MS = 15_000;
 export const SQUAD_SLIDE_MS = 5_000;
@@ -95,7 +102,9 @@ export const DraftBoardPlayerReveal = memo(function DraftBoardPlayerReveal({
               </span>
             ) : null}
             {mode === 'squad' && squadBadge ? (
-              <span className="draft-board-reveal-status-tag">{squadBadge}</span>
+              <span className="draft-board-reveal-status-tag">
+                {SQUAD_BADGE_LABEL[squadBadge]}
+              </span>
             ) : null}
           </div>
         </header>

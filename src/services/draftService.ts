@@ -18,6 +18,7 @@ import { getFirebaseDb } from '../firebase/config';
 import {
   COLLECTIONS,
   DRAFT,
+  LOCK_RETAINED_LABEL,
 } from '../constants';
 import {
   DraftPick,
@@ -272,18 +273,6 @@ export function getExtraLockedPlayers(
   );
 }
 
-export function getFranchisesMissingExtraLocks(
-  franchises: Franchise[],
-  players: Player[],
-): Array<{ franchise: Franchise; locked: number }> {
-  return franchises
-    .map(franchise => ({
-      franchise,
-      locked: getExtraLockedPlayers(players, franchise).length,
-    }))
-    .filter(item => item.locked < DRAFT.LOCKS_PER_FRANCHISE);
-}
-
 export function isAnyFranchiseOwnerPlayer(
   player: Player,
   franchises: Franchise[],
@@ -347,7 +336,9 @@ export async function lockPlayerForFranchise(
 ): Promise<void> {
   const session = await getDraftSession();
   if (session && session.status !== 'SETUP') {
-    throw new Error('Players can only be locked before the draft starts');
+    throw new Error(
+      `${LOCK_RETAINED_LABEL} players can only be assigned before the draft starts`,
+    );
   }
 
   const db = getFirebaseDb();
@@ -407,7 +398,7 @@ export async function lockPlayerForFranchise(
     const extraLocks = extraLockedPlayerIds(franchise);
     if (extraLocks.length >= DRAFT.LOCKS_PER_FRANCHISE) {
       throw new Error(
-        `You can lock only ${DRAFT.LOCKS_PER_FRANCHISE} more players besides the team owner`,
+        `You can assign a maximum of ${DRAFT.LOCKS_PER_FRANCHISE} extra ${LOCK_RETAINED_LABEL} players besides the team owner`,
       );
     }
 
@@ -438,7 +429,9 @@ export async function unlockPlayerForFranchise(
 ): Promise<void> {
   const session = await getDraftSession();
   if (session && session.status !== 'SETUP') {
-    throw new Error('Locked players can only be changed before the draft starts');
+    throw new Error(
+      `${LOCK_RETAINED_LABEL} players can only be changed before the draft starts`,
+    );
   }
 
   const db = getFirebaseDb();
@@ -466,7 +459,9 @@ export async function unlockPlayerForFranchise(
     }
 
     if (player.lockedFranchiseId && player.lockedFranchiseId !== franchiseId) {
-      throw new Error('This player is locked by another franchise');
+      throw new Error(
+        `This player is already ${LOCK_RETAINED_LABEL} by another franchise`,
+      );
     }
 
     transaction.update(playerRef, {
@@ -533,7 +528,7 @@ export async function setFranchiseCaptain(
     const isLockedHere = player.lockedFranchiseId === franchiseId;
     if (!isOwner && !isLockedHere) {
       throw new Error(
-        'Captain must be the franchise owner or a locked player on this team',
+        `Captain must be the franchise owner or a ${LOCK_RETAINED_LABEL} player on this team`,
       );
     }
 
@@ -901,31 +896,6 @@ export async function startDraft(
   if (franchiseOrder.length < DRAFT.MIN_FRANCHISES) {
     throw new Error(
       `Set up at least ${DRAFT.MIN_FRANCHISES} franchises before starting`,
-    );
-  }
-
-  const approvedSnap = await getDocs(
-    query(
-      collection(getFirebaseDb(), COLLECTIONS.PLAYERS),
-      where('status', '==', 'APPROVED'),
-    ),
-  );
-  const approvedPlayers = approvedSnap.docs.map(d =>
-    mapPlayer(d.id, d.data() as Record<string, unknown>),
-  );
-  const missingLocks = getFranchisesMissingExtraLocks(
-    franchises,
-    approvedPlayers,
-  );
-  if (missingLocks.length > 0) {
-    const details = missingLocks
-      .map(
-        item =>
-          `${item.franchise.name} (${item.locked}/${DRAFT.LOCKS_PER_FRANCHISE})`,
-      )
-      .join(', ');
-    throw new Error(
-      `Assign ${DRAFT.LOCKS_PER_FRANCHISE} locked players to every franchise before starting the draft. Incomplete: ${details}`,
     );
   }
 

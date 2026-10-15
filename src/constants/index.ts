@@ -107,8 +107,12 @@ export const DRAFT = {
   TOTAL_PICKS: 0,
   SESSION_ID: 'mcl-2026-27',
   PICK_CLOCK_MS: 2 * 60 * 1000,
-  LOCKS_PER_FRANCHISE: 3,
+  /** Maximum extra Locked/Retained players per franchise (super admin may assign fewer). */
+  LOCKS_PER_FRANCHISE: 8,
 } as const;
+
+/** Display label for extra locked (retained) squad players. */
+export const LOCK_RETAINED_LABEL = 'Locked/Retained';
 
 export const SETTINGS_DOC_ID = 'league';
 
@@ -119,7 +123,7 @@ export const REGISTRATION_FEE = {
   easypaisaNumber: '03085386894',
   accountTitle: 'Bilal Shafeeq Bhatti',
   method: 'Easypaisa',
-  amount: 2500,
+  amount: 3000,
   currency: 'PKR',
 } as const;
 

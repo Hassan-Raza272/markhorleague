@@ -11,7 +11,7 @@ import {
 import { Text } from 'react-native-paper';
 import { AppIcon } from '../../components/AppIcon';
 import { colors } from '../../constants/theme';
-import { DRAFT } from '../../constants';
+import { DRAFT, LOCK_RETAINED_LABEL } from '../../constants';
 import type { Franchise, Player } from '../../types';
 import { getCategoryLabel } from '../../utils/validation';
 import {
@@ -107,8 +107,8 @@ export function FranchiseLockSection({
       <EnterView fromY={16} style={styles.section}>
         <SectionIntro
           icon="lock"
-          title="Locked Squad"
-          hint={`Super admin assigns ${DRAFT.LOCKS_PER_FRANCHISE} locked players to your franchise. You are auto-locked as team owner. After locks are assigned, you can make yourself or any locked player captain.`}
+          title={`${LOCK_RETAINED_LABEL} Squad`}
+          hint={`Super admin may assign up to ${DRAFT.LOCKS_PER_FRANCHISE} ${LOCK_RETAINED_LABEL} players to your franchise. You are auto-locked as team owner. After they are assigned, you can make yourself or any ${LOCK_RETAINED_LABEL} player captain.`}
         />
 
         {ownerPlayer ? (
@@ -137,7 +137,7 @@ export function FranchiseLockSection({
 
         {extraLocks.length === 0 ? (
           <Text style={styles.emptyText}>
-            Super admin has not assigned locked players yet.
+            Super admin has not assigned {LOCK_RETAINED_LABEL} players yet.
           </Text>
         ) : (
           extraLocks.map(player => (
@@ -145,7 +145,7 @@ export function FranchiseLockSection({
               key={player.id}
               player={player}
               lockedBy="Assigned by super admin"
-              badge="LOCK"
+              badge={LOCK_RETAINED_LABEL}
               isCaptain={captainId === player.id}
               captainActionLabel={
                 captainId === player.id ? undefined : 'Make Captain'
@@ -168,8 +168,8 @@ export function FranchiseLockSection({
     <EnterView fromY={16} style={styles.section}>
       <SectionIntro
         icon="lock-plus"
-        title="Assign Locked Players"
-        hint={`Only super admin can assign ${DRAFT.LOCKS_PER_FRANCHISE} extra locked players to each franchise. The owner is auto-locked. After locking, set a captain (owner or any locked player). Franchise admins can also set captain on their squad.`}
+        title={`Assign ${LOCK_RETAINED_LABEL} Players`}
+        hint={`Only super admin can assign up to ${DRAFT.LOCKS_PER_FRANCHISE} extra ${LOCK_RETAINED_LABEL} players to each franchise. The owner is auto-locked. After assigning ${LOCK_RETAINED_LABEL} players, set a captain (owner or any ${LOCK_RETAINED_LABEL} player). Franchise admins can also set captain on their squad.`}
       />
 
       <ScrollView
@@ -220,7 +220,7 @@ export function FranchiseLockSection({
             <View style={styles.statusDot} />
             <Text style={styles.adminFranchise} numberOfLines={compact ? 2 : 1}>
               {activeFranchise.name} · Owner auto-locked · {extraCount}/
-              {DRAFT.LOCKS_PER_FRANCHISE} extra
+              {DRAFT.LOCKS_PER_FRANCHISE} extra {LOCK_RETAINED_LABEL}
               {captainId ? ' · Captain set' : ''}
             </Text>
           </View>
@@ -253,7 +253,7 @@ export function FranchiseLockSection({
               key={player.id}
               player={player}
               lockedBy={activeFranchise.name}
-              badge="LOCK"
+              badge={LOCK_RETAINED_LABEL}
               isCaptain={captainId === player.id}
               actionLabel="Unlock"
               disabled={!!busy}
@@ -273,7 +273,9 @@ export function FranchiseLockSection({
           ))}
 
           {extraLocks.length === 0 && (
-            <Text style={styles.emptyText}>No extra players locked yet.</Text>
+            <Text style={styles.emptyText}>
+              No extra {LOCK_RETAINED_LABEL} players yet.
+            </Text>
           )}
 
           <View style={styles.searchBox}>
@@ -281,7 +283,7 @@ export function FranchiseLockSection({
             <RNTextInput
               value={search}
               onChangeText={setSearch}
-              placeholder={`Search players to lock for ${activeFranchise.name}…`}
+              placeholder={`Search players to assign as ${LOCK_RETAINED_LABEL} for ${activeFranchise.name}…`}
               placeholderTextColor={colors.silver[400]}
               style={styles.searchInput}
             />
@@ -291,8 +293,8 @@ export function FranchiseLockSection({
             <View style={styles.fullBanner}>
               <AppIcon name="check-circle" size={16} color={colors.lime[500]} />
               <Text style={styles.fullBannerText}>
-                {activeFranchise.name} has all {DRAFT.LOCKS_PER_FRANCHISE} extra
-                locks assigned.
+                {activeFranchise.name} has all {DRAFT.LOCKS_PER_FRANCHISE} extra{' '}
+                {LOCK_RETAINED_LABEL} players assigned.
               </Text>
             </View>
           ) : null}
@@ -312,7 +314,7 @@ export function FranchiseLockSection({
                 lockedBy={
                   lockedByOther ? otherName ?? 'Another franchise' : undefined
                 }
-                actionLabel={lockedByOther ? undefined : 'Lock'}
+                actionLabel={lockedByOther ? undefined : LOCK_RETAINED_LABEL}
                 disabled={!canLock}
                 loading={busy === `lock-${player.id}`}
                 onPress={
@@ -324,7 +326,9 @@ export function FranchiseLockSection({
             );
           })}
           {approvedPlayers.length === 0 && (
-            <Text style={styles.emptyText}>No approved players to lock.</Text>
+            <Text style={styles.emptyText}>
+              No approved players to assign as {LOCK_RETAINED_LABEL}.
+            </Text>
           )}
         </>
       )}
@@ -384,7 +388,10 @@ function PlayerLockRow({
   captainLoading?: boolean;
   onCaptainPress?: () => void;
 }) {
+  const { width } = useWindowDimensions();
+  const compact = width < 380;
   const unlock = actionLabel === 'Unlock';
+  const isLockBadge = badge === LOCK_RETAINED_LABEL;
   return (
     <EnterView
       fromY={10}
@@ -403,12 +410,18 @@ function PlayerLockRow({
             {player.fullName}
           </Text>
           {badge ? (
-            <View style={[styles.badge, badge === 'LOCK' && styles.badgeLock]}>
+            <View
+              style={[
+                styles.badge,
+                isLockBadge && styles.badgeLock,
+                compact && styles.badgeCompact,
+              ]}>
               <Text
                 style={[
                   styles.badgeText,
-                  badge === 'LOCK' && styles.badgeTextLock,
-                ]}>
+                  isLockBadge && styles.badgeTextLock,
+                ]}
+                numberOfLines={compact ? 2 : 1}>
                 {badge}
               </Text>
             </View>
@@ -446,12 +459,18 @@ function PlayerLockRow({
             style={({ pressed }) => [
               styles.actionChip,
               unlock && styles.unlockChip,
+              actionLabel === LOCK_RETAINED_LABEL && styles.lockActionChip,
+              compact && styles.actionChipCompact,
               (disabled || loading) && styles.actionChipDisabled,
               pressed && styles.pressed,
             ]}>
             <Text
-              style={[styles.actionText, unlock && styles.unlockText]}
-              numberOfLines={1}>
+              style={[
+                styles.actionText,
+                unlock && styles.unlockText,
+                compact && styles.actionTextCompact,
+              ]}
+              numberOfLines={compact ? 2 : 1}>
               {loading ? '…' : actionLabel}
             </Text>
           </Pressable>
@@ -657,6 +676,7 @@ const styles = StyleSheet.create({
   playerNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
   },
   playerName: {
@@ -670,6 +690,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    flexShrink: 1,
+    maxWidth: 132,
+  },
+  badgeCompact: {
+    maxWidth: 96,
   },
   badgeLock: {
     backgroundColor: 'rgba(163,207,45,0.16)',
@@ -686,7 +711,8 @@ const styles = StyleSheet.create({
     color: colors.gold[400],
     fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
   badgeTextLock: {
     color: colors.lime[400],
@@ -715,6 +741,17 @@ const styles = StyleSheet.create({
     minWidth: 64,
     alignItems: 'center',
   },
+  lockActionChip: {
+    minWidth: 100,
+    maxWidth: 124,
+    paddingHorizontal: 8,
+  },
+  actionChipCompact: {
+    minWidth: 78,
+    maxWidth: 96,
+    paddingHorizontal: 6,
+    paddingVertical: 7,
+  },
   captainChip: {
     backgroundColor: 'transparent',
     borderRadius: 10,
@@ -737,6 +774,11 @@ const styles = StyleSheet.create({
     color: colors.forest[950],
     fontWeight: '800',
     fontSize: 12,
+    textAlign: 'center',
+  },
+  actionTextCompact: {
+    fontSize: 10,
+    lineHeight: 12,
   },
   captainText: {
     color: colors.gold[400],
