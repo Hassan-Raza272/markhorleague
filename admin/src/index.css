@@ -301,8 +301,10 @@ body {
   border-radius: 9999px;
   border: 1px solid rgba(212, 175, 55, 0.35);
   background: rgba(212, 175, 55, 0.12);
-  font-size: 0.85em;
-  letter-spacing: 0.1em;
+  font-size: clamp(0.55rem, 1.2vmin, 0.85em);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 /* Main card */

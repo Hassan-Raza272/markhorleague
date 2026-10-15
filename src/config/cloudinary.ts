@@ -11,8 +11,8 @@
  * 4. Paste cloud name + preset name below
  */
 export const CLOUDINARY = {
-  cloudName: 'cifzbvap',
-  uploadPreset: 'gsxeh67j',
+  cloudName: 'emrz7wnz',
+  uploadPreset: 'f7bush14',
   folder: 'mcl-players',
 } as const;
 
