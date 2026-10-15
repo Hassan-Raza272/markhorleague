@@ -12,6 +12,7 @@ import {
   type PdfImage,
 } from './pdfImages';
 import type { PlayerImageLookup } from './exportDraftPdf';
+import { LOCK_RETAINED_LABEL } from '../constants';
 
 const W = 1080;
 const H = 1920;
@@ -21,6 +22,7 @@ type SquadPosterPlayer = {
   role: PlayingRole | string;
   isCaptain?: boolean;
   isOwner?: boolean;
+  isLock?: boolean;
   photoUrl?: string;
   photo?: PdfImage | null;
 };
@@ -345,6 +347,7 @@ function drawSquadByRole(doc: jsPDF, sections: RoleSection[]) {
       const suffixes: string[] = [];
       if (player.isCaptain) suffixes.push('(C)');
       if (player.isOwner) suffixes.push('(Owner)');
+      else if (player.isLock) suffixes.push(`(${LOCK_RETAINED_LABEL})`);
       const label = suffixes.length
         ? `${player.name.toUpperCase()} ${suffixes.join(' ')}`
         : player.name.toUpperCase();
@@ -411,6 +414,7 @@ function toPosterPlayers(
     isOwner: Boolean(
       ownerPlayerDocId && pick.playerDocId === ownerPlayerDocId,
     ),
+    isLock: Boolean(pick.isLock),
     photoUrl: playerImages?.get(pick.playerDocId),
   }));
 }

@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import type { DraftPick, Franchise } from '../types';
 import { drawMclCircularLogo } from './drawMclLogo';
 import { getCategoryLabel } from './validation';
-import { KIT_SIZE_LABELS } from '../constants';
+import { KIT_SIZE_LABELS, LOCK_RETAINED_LABEL } from '../constants';
 import { getPickDetails } from './draftOrder';
 import {
   drawPdfPhotoInCell,
@@ -28,7 +28,7 @@ function squadPickLabel(
   draftedIndex: number,
   lockCount: number,
 ): string {
-  return pick.isLock ? 'LOCK' : String(lockCount + draftedIndex + 1);
+  return pick.isLock ? LOCK_RETAINED_LABEL : String(lockCount + draftedIndex + 1);
 }
 
 function squadRoundLabel(pick: DraftPick, draftedIndex: number): string {
@@ -160,11 +160,11 @@ export async function buildFranchiseSquadPdfBase64(
     },
     alternateRowStyles: { fillColor: [240, 247, 244] },
     columnStyles: {
-      0: { cellWidth: 20, halign: 'center' },
+      0: { cellWidth: 28, halign: 'center', fontSize: 6.5 },
       1: { cellWidth: 16, halign: 'center' },
       2: { cellWidth: 14, halign: 'center' },
-      3: { cellWidth: 26, fontStyle: 'bold' },
-      4: { cellWidth: 42 },
+      3: { cellWidth: 24, fontStyle: 'bold' },
+      4: { cellWidth: 38 },
     },
     margin: { left: 8, right: 8 },
     didDrawCell: data => {
