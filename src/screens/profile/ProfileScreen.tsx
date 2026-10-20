@@ -5,6 +5,7 @@ import {
   ScrollView,
   Image,
   RefreshControl,
+  Pressable,
 } from 'react-native';
 import { Text, Divider } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
@@ -19,6 +20,7 @@ import { colors } from '../../constants/theme';
 import { formatDate, getKitSizeLabel } from '../../utils/validation';
 import { MainStackParamList } from '../../navigation/types';
 import { EnterView, PulseView } from '../../motion';
+import { ImagePreviewModal } from '../../components/ImagePreviewModal';
 
 function ProfileField({
   label,
@@ -49,6 +51,7 @@ export function ProfileScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const [refreshing, setRefreshing] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -77,17 +80,27 @@ export function ProfileScreen() {
           />
         }>
         <EnterView delay={40} fromY={18} fromScale={0.96} style={styles.heroCard}>
-          <PulseView from={0.98} to={1.035} duration={2400}>
-            {player.profileImage ? (
-              <Image source={{ uri: player.profileImage }} style={styles.avatar} />
-            ) : (
+          {player.profileImage ? (
+            <Pressable
+              onPress={() => setPreviewOpen(true)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel="View full profile photo">
+              <PulseView from={0.98} to={1.035} duration={2400}>
+                <Image
+                  source={{ uri: player.profileImage }}
+                  style={styles.avatar}
+                />
+              </PulseView>
+            </Pressable>
+          ) : (
+            <PulseView from={0.98} to={1.035} duration={2400}>
               <View style={styles.avatarPlaceholder}>
                 <Text style={styles.avatarText}>
                   {player.fullName.charAt(0).toUpperCase()}
                 </Text>
               </View>
-            )}
-          </PulseView>
+            </PulseView>
+          )}
 
           <Text style={styles.name}>{player.fullName}</Text>
           <Text style={styles.fatherName}>s/o {player.fatherName}</Text>
@@ -187,6 +200,11 @@ export function ProfileScreen() {
           </PremiumButton>
         </EnterView>
       </ScrollView>
+      <ImagePreviewModal
+        visible={previewOpen}
+        uri={player.profileImage}
+        onClose={() => setPreviewOpen(false)}
+      />
     </GradientBackground>
   );
 }
