@@ -39,7 +39,7 @@ export function PulseView({
 }: EffectProps & { from?: number; to?: number; duration?: number }) {
   return (
     <EaseView
-      style={style}
+      style={[{ pointerEvents: 'box-none' }, style]}
       initialAnimate={{ scale: from }}
       animate={{ scale: to }}
       transition={{

@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  Linking,
   TextInput as RNTextInput,
   Pressable,
 } from 'react-native';
@@ -34,6 +33,7 @@ import { Player, PlayerCategory, RegistrationStatus } from '../../types';
 import { getCategoryLabel, getKitSizeLabel, formatDateTime } from '../../utils/validation';
 import { usePremiumAlert } from '../../components/PremiumAlertProvider';
 import { EnterView, PulseView } from '../../motion';
+import { ImagePreviewModal } from '../../components/ImagePreviewModal';
 
 type DetailRoute = {
   AdminPlayerDetail: { playerId: string };
@@ -64,6 +64,7 @@ export function AdminPlayerDetailScreen() {
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryChoice>('UNASSIGNED');
   const [selectedFranchiseId, setSelectedFranchiseId] = useState<string>('');
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -278,17 +279,29 @@ export function AdminPlayerDetailScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* ─── Premium Hero Section ─── */}
         <EnterView fromY={16} fromScale={0.94} style={styles.hero}>
-          <PulseView from={0.98} to={1.03} duration={2200}>
-            <View style={styles.avatarGlow}>
-            {player.profileImage ? (
-              <Image source={{ uri: player.profileImage }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarText}>{player.fullName.charAt(0)}</Text>
+          {player.profileImage ? (
+            <Pressable
+              onPress={() => setPreviewUri(player.profileImage ?? null)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel="View full profile photo">
+              <PulseView from={0.98} to={1.03} duration={2200}>
+                <View style={styles.avatarGlow}>
+                  <Image
+                    source={{ uri: player.profileImage }}
+                    style={styles.avatar}
+                  />
+                </View>
+              </PulseView>
+            </Pressable>
+          ) : (
+            <PulseView from={0.98} to={1.03} duration={2200}>
+              <View style={styles.avatarGlow}>
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarText}>{player.fullName.charAt(0)}</Text>
+                </View>
               </View>
-            )}
-            </View>
-          </PulseView>
+            </PulseView>
+          )}
           <Text style={styles.name}>{player.fullName}</Text>
           <Text style={styles.id}>{player.playerId}</Text>
           <StatusBadge status={player.status} />
@@ -626,11 +639,9 @@ export function AdminPlayerDetailScreen() {
           ) : null}
           {player.feeReceiptUrl ? (
             <Pressable
-              onPress={() =>
-                Linking.openURL(player.feeReceiptUrl!).catch(() =>
-                  alert('Error', 'Could not open receipt image.'),
-                )
-              }>
+              onPress={() => setPreviewUri(player.feeReceiptUrl ?? null)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel="View payment receipt">
               <Text style={styles.receiptLink}>View payment receipt</Text>
               <Image
                 source={{ uri: player.feeReceiptUrl }}
@@ -643,6 +654,11 @@ export function AdminPlayerDetailScreen() {
           )}
         </EnterView>
       </ScrollView>
+      <ImagePreviewModal
+        visible={!!previewUri}
+        uri={previewUri}
+        onClose={() => setPreviewUri(null)}
+      />
     </GradientBackground>
   );
 }
