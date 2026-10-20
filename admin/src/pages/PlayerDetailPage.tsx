@@ -42,6 +42,7 @@ export function PlayerDetailPage() {
   const [form, setForm] = useState<Partial<Player>>({});
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
   const { data: player, isLoading } = useQuery({
     queryKey: ['player', id],
@@ -194,11 +195,16 @@ export function PlayerDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="admin-panel p-6 text-center">
             {player.profileImage ? (
-              <img
-                src={player.profileImage}
-                alt={player.fullName}
-                className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-mcl-gold-500 mb-4"
-              />
+              <button
+                type="button"
+                onClick={() => setPreviewSrc(player.profileImage!)}
+                className="block mx-auto mb-4 rounded-full focus:outline-none focus:ring-2 focus:ring-mcl-gold-400">
+                <img
+                  src={player.profileImage}
+                  alt={player.fullName}
+                  className="w-32 h-32 rounded-full object-cover border-4 border-mcl-gold-500 cursor-zoom-in"
+                />
+              </button>
             ) : (
               <div className="w-32 h-32 rounded-full mx-auto bg-mcl-forest-700 text-mcl-lime-500 flex items-center justify-center text-4xl font-bold mb-4 border border-mcl-lime-500/40">
                 {player.fullName.charAt(0)}
@@ -377,17 +383,16 @@ export function PlayerDetailPage() {
                   <p className="text-xs font-semibold text-mcl-silver-400 uppercase tracking-wider mb-2">
                     Payment Receipt
                   </p>
-                  <a
-                    href={player.feeReceiptUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewSrc(player.feeReceiptUrl!)}
+                    className="inline-block text-left focus:outline-none focus:ring-2 focus:ring-mcl-gold-400 rounded-xl">
                     <img
                       src={player.feeReceiptUrl}
                       alt="Payment receipt"
-                      className="max-w-full max-h-80 rounded-xl border border-mcl-forest-600"
+                      className="max-w-full max-h-80 rounded-xl border border-mcl-forest-600 cursor-zoom-in"
                     />
-                  </a>
+                  </button>
                 </div>
               ) : (
                 <p className="text-sm text-mcl-silver-400 mt-4 italic">
@@ -398,6 +403,29 @@ export function PlayerDetailPage() {
           </div>
         </div>
       </div>
+
+      {previewSrc ? (
+        <div
+          className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setPreviewSrc(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Full image">
+          <button
+            type="button"
+            onClick={() => setPreviewSrc(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full border border-mcl-lime-500/40 bg-mcl-forest-900 text-white text-xl leading-none hover:bg-mcl-forest-800"
+            aria-label="Close image">
+            ×
+          </button>
+          <img
+            src={previewSrc}
+            alt="Full size"
+            className="max-w-[95vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      ) : null}
 
       {showReject && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
